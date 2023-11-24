@@ -6,6 +6,10 @@ import java.awt.*;
 public class AnoWindow extends JFrame {
     protected DB db;
 
+    protected JTabbedPane tabbedPane;
+    protected TabChatPanel tabChatPanel;
+    protected JPanel tabSettingsPanel;
+
     public int windowWidth;
     public int windowHeigh;
 
@@ -28,11 +32,11 @@ public class AnoWindow extends JFrame {
         setTitle("Ano - лучший в мире чат!");
 
         // Панель с вкладками JTabbedPane
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
         // Создание панели для первой вкладки
-        TabChatPanel tabChatPanel = new TabChatPanel(this);
+        tabChatPanel = new TabChatPanel(this);
         // Создание панели для второй вкладки
-        JPanel tabSettingsPanel = new JPanel();
+        tabSettingsPanel = new JPanel();
         tabSettingsPanel.add(new javax.swing.JLabel());
         // Добавление вкладок на панель с вкладками
         tabbedPane.addTab("Чат", tabChatPanel);
@@ -47,6 +51,9 @@ public class AnoWindow extends JFrame {
         setLocationRelativeTo(null);
         // Установка видимости окна
         setVisible(true);
+
+        // Запуск прослушивания БД
+        db.startListenerDB(this);
     }
 
 }
