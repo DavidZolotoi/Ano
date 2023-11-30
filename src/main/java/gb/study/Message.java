@@ -2,6 +2,7 @@ package gb.study;
 
 public class Message {
 
+    //todo это должен быть User (но тут вопрос - с паролем или без? может подтереть?)
     String author;
     String text;
 

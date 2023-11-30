@@ -1,5 +1,6 @@
 package gb.study;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.postgresql.PGConnection;
@@ -7,29 +8,89 @@ import org.postgresql.PGNotification;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.swing.*;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 public class DB {
-    protected Connection connForListen;
-    protected Statement stmtForListen;
+    //путь к файлу и словарь с данными из файла делаю статическим,
+    // чтоб не перезаписывать эти данные при каждом подключении к БД
+    protected static String settingsFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json";
+    protected static Map<String, String> settings;
 
     protected Connection connForSend;
     protected Statement stmtForSend;
 
-    public DB() {
-        connForListen = getConnection();
-        stmtForListen = getStatement(connForListen);
+    protected Connection connForListen;
+    protected Statement stmtForListen;
 
-        connForSend = getConnection();
+    public DB() {
+        //создать словарь, если его до сих пор нет,
+        // добавить ключи, если их там до сих пор нет, прочитав из файла
+        DB.settings = checkSettings(DB.settings, DB.settingsFilePath,
+                "url", "user", "password", "table_name_for_user", "table_name_for_chat_list");
+
+        //todo возможно стоит убрать из конструктора - надо подумать
+        connForSend = getConnection(settings.get("url"), settings.get("user"), settings.get("password"));
         stmtForSend = getStatement(connForSend);
+
+        connForListen = getConnection(settings.get("url"), settings.get("user"), settings.get("password"));
+        stmtForListen = getStatement(connForListen);
     }
 
+    /**
+     * Проверить существование словаря настроек и ключей в нём.
+     * Если словаря нет, то создать.
+     * Если ключей в словаре нет, то добавить, прочитав их значения из файла.
+     * @param mapForCheck словарь, который необходимо проверить и вернуть.
+     * @param filePath путь к файлу, в котором хранятся ключи и значения для словаря
+     * @param jsonKeys ключи, которые необходимо проверить или добавить
+     * @return Проверенный и дополненный в случае необходимости словарь.
+     */
+    private Map<String, String> checkSettings(Map<String, String> mapForCheck, String filePath, String... jsonKeys) {
+        if (mapForCheck == null) mapForCheck = new HashMap<>();
+        for (var jsonKey:jsonKeys) {
+            if (!mapForCheck.containsKey(jsonKey))
+                mapForCheck.put(jsonKey, readJSONFile(filePath, jsonKey));
+        }
+        return mapForCheck;
+    }
+    /**
+     * Метод, получающий значение по ключу из JSON-файла
+     * @param filePath путь к файлу JSON,
+     * @param jsonKey ключ, по которому необходимо найти значение
+     * @return искомое значение
+     */
+    public String readJSONFile(String filePath, String jsonKey) {
+        String jsonValue = null;
+        try (FileReader reader = new FileReader(filePath))
+        {
+            JSONTokener tokener = new JSONTokener(reader);
+            JSONObject jsonObject = new JSONObject(tokener);
+            jsonValue = jsonObject.getString(jsonKey);
+        } catch (FileNotFoundException e) {
+            System.out.println("Файл не найден: " + filePath);
+            e.printStackTrace();
+        } catch (JSONException e) {
+            System.out.println("Ошибка при чтении JSON. Ключ: " + jsonKey);
+            e.printStackTrace();
+        } catch (IOException e) {
+            System.out.println("Проблема с вводом-выводом при чтении файла: " + filePath);
+            e.printStackTrace();
+        }
+        return jsonValue;
+    }
+
+    /**
+     * Метод, создающий Statement, используя готовое соединение
+     * @param connection соединение
+     * @return созданный Statement
+     */
     private Statement getStatement(Connection connection) {
         Statement stmt = null;
         try {
@@ -40,12 +101,14 @@ public class DB {
         return stmt;
     }
 
-    //Возврат подключения к базе
-    protected Connection getConnection(){
-        var dbInfo = readJSONFile("E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json");
-        String url = dbInfo.get("url");
-        String user = dbInfo.get("user");
-        String password = dbInfo.get("password");
+    /**
+     * Метод, создающий подключение
+     * @param url адрес БД
+     * @param user логин БД
+     * @param password пароль БД
+     * @return соединение
+     */
+    protected Connection getConnection(String url, String user, String password){
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
@@ -60,42 +123,13 @@ public class DB {
         return conn;
     }
 
-    /**
-     * Метод, конвертирующий данные из JSON в словарь
-     * @param filePath путь к файлу JSON
-     * @return словарь
-     */
-    public Map<String, String> readJSONFile(String filePath) {
-        Map<String, String> dict = new HashMap<>();
-        try {
-            // Чтение файла JSON
-            FileReader reader = new FileReader(filePath);
-            JSONTokener tokener = new JSONTokener(reader);
 
-            // Создание объекта JSONObject из содержимого файла
-            JSONObject jsonObject = new JSONObject(tokener);
-
-            // Получение значений по ключам
-            String url = jsonObject.getString("url");
-            String user = jsonObject.getString("user");
-            String password = jsonObject.getString("password");
-
-            // Заполнение словаря
-            dict.put("url", url);
-            dict.put("user", user);
-            dict.put("password", password);
-        } catch (Exception e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с прочтением JSON");
-            e.printStackTrace();
-        }
-        return dict;
-    }
 
     public ArrayList<Message> getLastMessages(int countMessagesDownloadAtStart) {
         ArrayList<Message> lastMessages = new ArrayList<>(countMessagesDownloadAtStart);
         lastMessages.add(new Message("...", "..."));
 
-        // todo в будущем сортировку надо сделать по дате, а не по id
+        //todo в будущем сортировку надо сделать по дате, а не по id
         String downloadQuery =
                 "SELECT id, mes FROM " +
                         "(SELECT id, mes FROM messagestable ORDER BY id DESC LIMIT " + countMessagesDownloadAtStart + ") " +
@@ -115,24 +149,27 @@ public class DB {
         return lastMessages;
     }
 
+
     public void sendNewMessage(Message message) {
-        // отправляем запрос INSERT
-        String insertQuery = "INSERT INTO messagestable (id, mes) VALUES ('" + message.author + "', '" + message.text + "')";
-        //todo сдвинуть фокус на ввод
+        String queryForInsertNewMessage =
+                "INSERT INTO messagestable (id, mes) " +
+                "VALUES ('" + message.author + "', '" + message.text + "')";
         try {
-            stmtForSend.execute(insertQuery);
+            stmtForSend.execute(queryForInsertNewMessage);
         } catch (SQLException e) {
             System.out.println("НЕ ВЫПОЛНЕНО: Проблема с stmt2.execute(insertQuery): \n" + e.getMessage());
         }
     }
 
     /**
-     * Метод скорее для экспериментальных действий
+     * Универсальный метод, выполняющий запрос в БД
      * устанавливает свое соединение с базой и выполняет запрос
      * @param query запрос, который необходимо выполнить
      */
-    public void executeQuery(String query) {
-        Statement stmtForQuery = getStatement(getConnection());
+    public void executeQueryVoid(String query) {
+        Statement stmtForQuery = getStatement(
+                getConnection(settings.get("url"), settings.get("user"), settings.get("password"))
+        );
         try {
             stmtForQuery.execute(query);
         } catch (SQLException e) {
@@ -141,11 +178,42 @@ public class DB {
     }
 
     /**
-     * Прослушивание
+     * Универсальный метод, выдающий отчет из базы данных ио запросу - таблица - коллекция коллекций
+     * @param query запрос SQL
+     * @return отчет из базы данных
+     */
+    public ArrayList<ArrayList<Object>> executeQueryReport(String query){
+        ArrayList<ArrayList<Object>> resultReport = new ArrayList<>();
+        try (
+                Statement stmtForQuery = getStatement(
+                        getConnection(settings.get("url"), settings.get("user"), settings.get("password"))
+                );
+                ResultSet newRow = stmtForQuery.executeQuery(query)
+        ) {
+            ResultSetMetaData metaData = newRow.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            while (newRow.next()) {
+                ArrayList<Object> newRowReport = new ArrayList<>();
+                for (int newColumn = 1; newColumn <= columnCount; newColumn++) {
+                    String columnName = metaData.getColumnName(newColumn);
+                    Object cellValue = newRow.getObject(newColumn);
+                    newRowReport.add(cellValue);
+                    System.out.println(columnName + ": " + cellValue);
+                }
+                resultReport.add(newRowReport);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return resultReport;
+    }
+
+    /**
+     * Прослушивание диалога
      * @param anoWindow ссылка на окно,
      *                  в котором есть метод, вставляющий новые сообщения в свое место на окне
      */
-    public void startListenerDB(AnoWindow anoWindow) {
+    public void startListenerChat(AnoWindow anoWindow) {    //todo может исправить на фрейм, а потом преобразовать?
         String listenQuery = "LISTEN message_inserted";
         try {
             stmtForListen.execute(listenQuery);
@@ -180,6 +248,9 @@ public class DB {
         }
     }
 
+    /**
+     * Воспроизведение звукового уведомления
+     */
     public static void audioNotification() {
         String soundFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\Ano\\src\\main\\resources\\sounds\\audioMes.wav";
         try {
@@ -190,5 +261,200 @@ public class DB {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Метод, получающий id, login, password из таблицы user в БД.
+     * @param user пользователь
+     */
+    public ArrayList<ArrayList<Object>> selectIdLoginPasswordForUser(User user) {
+        String queryForGetIdLoginPassword =
+                "SELECT id, login, password FROM " + DB.settings.get("table_name_for_user") + " " +
+                        "WHERE login = '" + user.getLogin() + "'";
+        return executeQueryReport(queryForGetIdLoginPassword);
+    }
+
+    /**
+     * Метод, добавляющий нового пользователя (новую строку в таблице user)
+     * @param user объект пользователя, которого необходимо добавить
+     */
+    public void insertNewUserAndConfigure(User user) {
+        String queryForInsertNewUser =
+                "INSERT INTO " + DB.settings.get("table_name_for_user") +
+                        "(" +
+                        "login" + ", " +
+                        "password" + ", " +
+                        "first_name" + ", " +
+                        "last_name" + ", " +
+                        "mail" + ", " +
+                        "phone" + ", " +
+                        "comment" +
+                        ")" +
+                        "VALUES" +
+                        "(" +
+                        "'" + user.getLogin() + "'," +
+                        "'" + user.getPassword() + "'," +
+                        "'" + user.getFirstName() + "'," +
+                        "'" + user.getLastName() + "'," +
+                        "'" + user.getMail() + "'," +
+                        "'" + user.getPhone() + "'," +
+                        "'" + user.getComment() + "'," +
+                        ");";
+        executeQueryVoid(queryForInsertNewUser);
+
+        //ПОЛУЧИТЬ id запросом в БД и вернуть его
+//        String queryForReport = "select id" + " " +
+//                "from " + DB.settings.get("table_name_for_user") + " " +
+//                "where login = '" + this.login + "';";
+//        return executeQueryReport(queryForReport);
+    }
+
+    /**
+     * Метод, получающий id из таблицы chat_list в БД.
+     * @param chatListRow запись о диалоге
+     * @return id записи о диалоге
+     */
+    public ArrayList<ArrayList<Object>> selectIdForChatListRow(ChatListRow chatListRow) {
+        String queryForSelectId =
+                "SELECT id FROM " + DB.settings.get("table_name_for_chat_list") + " " +
+                        "WHERE table_name = '" + chatListRow.getTableName() + "'";
+        // может вернуться null - обработать выше по уровню
+        return executeQueryReport(queryForSelectId);
+    }
+
+    /**
+     * Метод, добавляющий запись о диалоге (новую строку в таблице chat_list)
+     * @param chatListRow объект записи, которую необходимо добавить
+     */
+    public void insertNewChatListRow(ChatListRow chatListRow) {
+        String queryForInsertChatList =
+                "INSERT INTO " + DB.settings.get("table_name_for_chat_list") + " " +
+                        "(userid_min, userid_max, table_name, comment) " +
+                        "values (" +
+                        chatListRow.getUserIdMin() + "," +
+                        chatListRow.getUserIdMax() + "," +
+                        "'" + chatListRow.getTableName() + "'," +
+                        chatListRow.getComment() +
+                        ");"
+                ;
+        executeQueryVoid(queryForInsertChatList);
+    }
+
+    /**
+     * Метод, создающий новую таблицу для диалога с наименованием в соответствии с записью о диалоге в таблице chat_list
+     * @param chatListRow объект записи, содержащий наименование таблицы (tableName)
+     */
+    public void createNewTableForChat(ChatListRow chatListRow) {
+        String queryForCreateNewTable =
+                "CREATE TABLE IF NOT EXISTS " + chatListRow.getTableName() + " (" +
+                        "id SERIAL PRIMARY KEY, " +
+                        "mes_author_id integer NOT null, " +
+                        "mes_content varchar(1000) null, " +
+                        "mes_datetime timestamp NOT null, " +
+                        "mes_comment varchar(256) null" +
+                        ");"
+                ;
+        executeQueryVoid(queryForCreateNewTable);
+    }
+
+    /**
+     * Метод, добавляющий внешний ключ к колонке mes_author_id из диалога со ссылкой на колонку id таблицы user_list
+     * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
+     */
+    public void addForeignKeyForChat(ChatListRow chatListRow) {
+        String queryForAddForeignKey =
+                "ALTER TABLE " + chatListRow.getTableName() + " " +
+                        "ADD CONSTRAINT fk_mes_author_id FOREIGN KEY (mes_author_id) " +
+                        "REFERENCES " + DB.settings.get("table_name_for_user") + " (id);"
+                ;
+        executeQueryVoid(queryForAddForeignKey);
+    }
+
+    /**
+     * Метод, добавляющий функцию уведомлений для новой таблицы диалога
+     * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
+     */
+    public void createFunctionNotifyForNewMessage(ChatListRow chatListRow) {
+        String newTableNameWithoutScheme = chatListRow.getTableName().replace("public.", "");
+        String queryForCreateFunctionNotify =
+                "CREATE OR REPLACE FUNCTION notify_newmes_" + newTableNameWithoutScheme + "() RETURNS trigger AS $$ " +
+                        "DECLARE " +
+                        "BEGIN " +
+                        "  PERFORM pg_notify(" +
+                        "'newmes_" + newTableNameWithoutScheme + "', " +
+                        "NEW.mes_author_id || '|' || mes_content || '|' || mes_datetime || '|' || mes_comment" +
+                        "); " +
+                        "  RETURN NEW; " +
+                        "END; " +
+                        "$$ LANGUAGE plpgsql;"
+                ;
+        executeQueryVoid(queryForCreateFunctionNotify);
+    }
+
+    /**
+     * Метод, создающий триггер для новой таблицы диалога,
+     * который будет вызывать функцию уведомлений, при добавлении новой записи о диалоге в таблицу
+     * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
+     */
+    public void createTriggerForExecuteProcedure(ChatListRow chatListRow) {
+        String newTableNameWithoutScheme = chatListRow.getTableName().replace("public.", "");
+        String queryForCreateTrigger =
+                "CREATE TRIGGER newmes_" + newTableNameWithoutScheme + "_trigger" + " " +
+                        "AFTER INSERT" + " " +
+                        "ON public." + newTableNameWithoutScheme + " " +
+                        "FOR EACH ROW" + " " +
+                        "EXECUTE PROCEDURE public.notify_newmes_" + newTableNameWithoutScheme + "();"
+                ;
+        executeQueryVoid(queryForCreateTrigger);
+    }
+
+    /**
+     * Метод, получающий из БД список записей о диалогах для пользователя
+     * @param user пользователь, для которого необходимо получить записи
+     * @return список записей о диалогах
+     */
+    public ArrayList<ArrayList<Object>> selectAllChatListRowWhereId(User user) {
+        String queryForChatListRows =
+                "select *" + " " +
+                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
+                        "where userid_min = " + user.getId() + " or userid_max = " + user.getId() + ";";
+        return executeQueryReport(queryForChatListRows);
+    }
+
+    /**
+     * Метод, получающий из БД id пользователей (userid_min, userid_max)
+     * из списка диалогов для пользователя
+     * @param chatListRow список диалогов пользователя
+     * @return id пользователей из списка диалогов для пользователя
+     */
+    public ArrayList<ArrayList<Object>> selectUserIdMinAndUserIdMax(ChatListRow chatListRow) {
+        String queryForSelectUserIdMinAndUserIdMax =
+                "select userid_min, userid_max" + " " +
+                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
+                        "where id = " + chatListRow.getId() + ";";
+        return executeQueryReport(queryForSelectUserIdMinAndUserIdMax);
+    }
+
+    /**
+     * Метод, получающий из БД логины пользователей по их id
+     * @param userIds id пользователей
+     * @return логины пользователей
+     */
+    public ArrayList<ArrayList<Object>> selectLoginsForUserIds(ArrayList<Integer> userIds) {
+        String queryForSelectLoginForUserIdPart1 =
+                "SELECT login FROM " + DB.settings.get("table_name_for_user") + " " +
+                "WHERE id = " + userIds.get(0);
+        StringBuilder queryForSelectLoginForUserIdPart2 = new StringBuilder("");
+        if (userIds.size()>0){
+            for (int i = 1; i < userIds.size(); i++) {
+                queryForSelectLoginForUserIdPart2.append(" or id = ").append(userIds.get(i));
+            }
+        }
+        queryForSelectLoginForUserIdPart2.append(";");
+
+        String queryForSelectLoginForUserId =
+                queryForSelectLoginForUserIdPart1 + queryForSelectLoginForUserIdPart2;
+
+        return executeQueryReport(queryForSelectLoginForUserId);
     }
 }

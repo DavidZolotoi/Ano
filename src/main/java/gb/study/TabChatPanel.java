@@ -11,7 +11,7 @@ public class TabChatPanel extends JPanel {
     private AnoWindow anoWindow;   //БД в его свойстве
 
     // ЛЕВАЯ панель
-    private JPanel leftPanel;
+    public JPanel leftPanel;    //todo переделать в private
 
     // ПРАВАЯ панель
     private JPanel rightPanel;
@@ -99,24 +99,26 @@ public class TabChatPanel extends JPanel {
                 )
         );
         // Добавление обработчика на кнопку отправки
-        messageSendButton.addActionListener(actionListener);
+        messageSendButton.addActionListener(sendMessageActionListener);
 
 
         // ДОБАВЛЕНИЕ ВСЕГО СОЗДАННОГО НА ОКНО
         // ЛЕВАЯ панель
         add(leftPanel);
-        //todo сделать метод, загружающий актуальные диалоги в левую панель
+        //todo переделать testTextArea в поле для поиска собеседника
         JTextArea testTextArea = new JTextArea("тестовое слово и не одно а много всяких разных слов, нужно больше");
         testTextArea.setEditable(false);
         testTextArea.setLineWrap(true);
         testTextArea.setWrapStyleWord(true);
+        //todo сделать метод, загружающий актуальные диалоги в левую панель
         leftPanel.add(testTextArea);
         // ПРАВАЯ панель
         add(rightPanel);
         // Добавление истории сообщений
         rightPanel.add(messageHistoryScroll);
         // Загрузить последние N сообщений и вставить их на панель сообщений messageHistoryPanel
-        downloadAndPasteLastMessagesToHistoryPanel(); //todo надо проскроллить
+        //todo загрузка сообщений должна происходить после выбора чата (клика)
+        //downloadAndPasteLastMessagesToHistoryPanel(); //todo надо проскроллить
         // Добавление нижней панели с инструментами для отправки письма
         rightPanel.add(bottomPanel);
         // Добавление поля для ввода в нижнюю панель
@@ -130,9 +132,9 @@ public class TabChatPanel extends JPanel {
     /**
      * Загрузить и вставить на панель сообщений последние сообщения
      */
-    private void downloadAndPasteLastMessagesToHistoryPanel() {
+    protected void downloadAndPasteLastMessagesToHistoryPanel() {
         countMessagesDownloadAtStart = 20; //todo сделать загрузку этого числа из настроек
-        for (Message message : anoWindow.db.getLastMessages(countMessagesDownloadAtStart)) {
+        for (Message message : anoWindow.getDb().getLastMessages(countMessagesDownloadAtStart)) {
             addAndShowNewMessage(message);
         }
     }
@@ -169,26 +171,27 @@ public class TabChatPanel extends JPanel {
     /**
      * Обработчик отправки письма в БД
      */
-    ActionListener actionListener = new ActionListener() {
+    ActionListener sendMessageActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            messageAuthor = "Comp"; //todo написать метод, который будет брать этот логин из настроек или БД
-            String yearBefor = (LocalDateTime.now().getYear()<10)?"0":"";
+            messageAuthor = anoWindow.getUser().getLogin();
+/*            String yearBefor = (LocalDateTime.now().getYear()<10)?"0":"";
             String monthBefor = (LocalDateTime.now().getMonthValue()<10)?"0":"";
             String dayBefor = (LocalDateTime.now().getDayOfMonth()<10)?"0":"";
             String hourBefor = (LocalDateTime.now().getHour()<10)?"0":"";
             String minuteBefor = (LocalDateTime.now().getMinute()<10)?"0":"";
-            String secondBefor = (LocalDateTime.now().getSecond()<10)?"0":"";
-            messageAuthor =
+            String secondBefor = (LocalDateTime.now().getSecond()<10)?"0":"";*/
+//todo удалить, когда будет настроена новая база
+  /*            messageAuthor =
                     yearBefor + LocalDateTime.now().getYear() +
                     monthBefor + LocalDateTime.now().getMonthValue() +
                     dayBefor + LocalDateTime.now().getDayOfMonth() +
                     hourBefor + LocalDateTime.now().getHour() +
                     minuteBefor + LocalDateTime.now().getMinute() +
-                    secondBefor + LocalDateTime.now().getSecond();//todo удалить, когда будет настроена новая база
+                    secondBefor + LocalDateTime.now().getSecond();*/
             String messageText = messageForSendTextArea.getText();
             Message message = new Message(messageAuthor, messageText);
-            anoWindow.db.sendNewMessage(message);
+            anoWindow.getDb().sendNewMessage(message);
             messageForSendTextArea.setText("");
             messageForSendTextArea.requestFocus();
         }
