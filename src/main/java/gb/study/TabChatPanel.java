@@ -4,7 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.time.LocalDateTime;;
+import java.sql.Timestamp;
+;
 
 public class TabChatPanel extends JPanel {
     // ОБЩЕЕ окно
@@ -130,68 +131,50 @@ public class TabChatPanel extends JPanel {
     }
 
     /**
-     * Загрузить и вставить на панель сообщений последние сообщения
-     */
-    protected void downloadAndPasteLastMessagesToHistoryPanel() {
-        countMessagesDownloadAtStart = 20; //todo сделать загрузку этого числа из настроек
-        for (Message message : anoWindow.getDb().getLastMessages(countMessagesDownloadAtStart)) {
-            addAndShowNewMessage(message);
-        }
-    }
-
-    /**
-     * Вставка нового сообщения на свое место в истории сообщений
-     * @param message новое сообщение
+     * Вставка нового сообщения на свое место в историю сообщений.
+     * Вызывается в методе чата после загрузки сообщений.
+     * @param message сообщение, которое нужно добавить
      */
     protected void addAndShowNewMessage(Message message) {
-        JTextArea messageTextArea = new JTextArea(message.show());
-        messageTextArea.setEditable(false);
-        messageTextArea.setLineWrap(true);
-        messageTextArea.setWrapStyleWord(true);
-        // отступы
-        int marginLeft, marginRight;
-        int marginLeftRightBig = (int)(anoWindow.getWidth()*0.25);
-        int marginLeftRightSmall = (int)(anoWindow.getWidth()*0.01);
-        if (message.isMarginRight) {
-            marginLeft = marginLeftRightSmall;
-            marginRight = marginLeftRightBig;
-        }else{
-            marginLeft = marginLeftRightBig;
-            marginRight = marginLeftRightSmall;
-        }
-        messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
-        // добавление сообщения в историю переписки
-        messageHistoryPanel.add(messageTextArea);
-        anoWindow.revalidate();  // Пересчитать компоновку
-        anoWindow.repaint();     // Перерисовать
-        //todo добавить прокрутку колесиком вниз истории сообщений
+            JTextArea messageTextArea = new JTextArea(message.show());
+            messageTextArea.setEditable(false);
+            messageTextArea.setLineWrap(true);
+            messageTextArea.setWrapStyleWord(true);
+            // отступы
+            int marginLeftRightBig = (int)(anoWindow.getWidth()*0.25);
+            int marginLeftRightSmall = (int)(anoWindow.getWidth()*0.01);
+            int marginLeft = marginLeftRightBig;        // если сообщение от автора
+            int marginRight = marginLeftRightSmall;
+            if (message.isMarginRight) {                // если сообщение от собеседника
+                marginLeft = marginLeftRightSmall;
+                marginRight = marginLeftRightBig;
+            }
+            messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
+            // добавление сообщения в историю переписки
+            messageHistoryPanel.add(messageTextArea);
+            anoWindow.revalidate();  // Пересчитать компоновку
+            anoWindow.repaint();     // Перерисовать
+            //todo добавить прокрутку колесиком вниз истории сообщений
     }
 
-
     /**
-     * Обработчик отправки письма в БД
+     * Обработчик отправки письма в БД, сам запрос спрятан внутри метода
      */
     ActionListener sendMessageActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            messageAuthor = anoWindow.getUser().getLogin();
-/*            String yearBefor = (LocalDateTime.now().getYear()<10)?"0":"";
-            String monthBefor = (LocalDateTime.now().getMonthValue()<10)?"0":"";
-            String dayBefor = (LocalDateTime.now().getDayOfMonth()<10)?"0":"";
-            String hourBefor = (LocalDateTime.now().getHour()<10)?"0":"";
-            String minuteBefor = (LocalDateTime.now().getMinute()<10)?"0":"";
-            String secondBefor = (LocalDateTime.now().getSecond()<10)?"0":"";*/
-//todo удалить, когда будет настроена новая база
-  /*            messageAuthor =
-                    yearBefor + LocalDateTime.now().getYear() +
-                    monthBefor + LocalDateTime.now().getMonthValue() +
-                    dayBefor + LocalDateTime.now().getDayOfMonth() +
-                    hourBefor + LocalDateTime.now().getHour() +
-                    minuteBefor + LocalDateTime.now().getMinute() +
-                    secondBefor + LocalDateTime.now().getSecond();*/
-            String messageText = messageForSendTextArea.getText();
-            Message message = new Message(messageAuthor, messageText);
-            anoWindow.getDb().sendNewMessage(message);
+            //отправить письмо в БД активного диалога, остальное должна сделать прослушка
+            Integer authorId = anoWindow.getUser().getId();
+            String mesContent = messageForSendTextArea.getText();
+            String mesComment = "Комментарий к сообщению 6";
+            ChatListRow activeChatListRow = anoWindow.getUser().getActiveChatListRow();
+            Message messageForSend = new Message(
+                    authorId,
+                    mesContent,
+                    mesComment,
+                    activeChatListRow,
+                    anoWindow
+            );
             messageForSendTextArea.setText("");
             messageForSendTextArea.requestFocus();
         }

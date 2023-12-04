@@ -2,6 +2,7 @@ package gb.study;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 
 public class User {
     private Integer id;        //заполняется при добавлении в БД, выгрузкой из неё присвоенного id
@@ -44,15 +45,28 @@ public class User {
         return comment;
     }
 
-    private ArrayList<ChatListRow> chatListRows;
-    public ArrayList<ChatListRow> getChatListRows() {
-        return chatListRows;
-    }
-    public void setChatListRows(ArrayList<ChatListRow> chatListRows) {
-        this.chatListRows = chatListRows;
+    private LinkedHashMap<Integer, ChatListRow> interlocutorIdsAndChatListRows;
+    public LinkedHashMap<Integer, ChatListRow> getInterlocutorIdsAndChatListRows() {
+        return interlocutorIdsAndChatListRows;
     }
 
-    private ArrayList<Chat> chats;
+    private LinkedHashMap<String, ChatListRow> interlocutorLoginsAndChatListRows;
+    public LinkedHashMap<String, ChatListRow> getInterlocutorLoginsAndChatListRows() {
+        return interlocutorLoginsAndChatListRows;
+    }
+
+    private ChatListRow activeChatListRow;
+    public ChatListRow getActiveChatListRow() {
+        return activeChatListRow;
+    }
+    public void setActiveChatListRow(ChatListRow activeChatListRow) {
+        this.activeChatListRow = activeChatListRow;
+    }
+
+    private LinkedHashMap<Integer, Chat> chats;
+    public LinkedHashMap<Integer, Chat> getChats() {
+        return chats;
+    }
 
     public User(
             String login, String password,
@@ -69,11 +83,13 @@ public class User {
         this.comment = comment;
         // получить из БД присвоенный id, добавив данные в БД, если их там нет
         this.id = parseIdFromBD(anoWindow);
-        this.chatListRows = parseChatListRows(anoWindow);
+        this.interlocutorIdsAndChatListRows = parseInterlocutorIdsAndChatListRows(anoWindow);
+        this.interlocutorLoginsAndChatListRows = parseInterlocutorLoginsAndChatListRows(anoWindow);
         // имея список чатов, todo создать коллекцию чатов (имена таблиц уже есть в chatListRows)
         this.chats = parseChats(anoWindow);
         // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
     }
+
     /**
      * Метод, получающий из БД id, присвоенный для User,
      * обработав результаты выгрузки из БД и приведя их к нужному типу
@@ -117,28 +133,29 @@ public class User {
     private boolean checkLoginPassword() {return true;}
 
     /**
-     * Получает список диалогов Chat, в которых состоит пользователь user,
-     * обработав результаты выгрузки из БД и приведя их к нужному типу
+     * Получает словарь id собеседников -> запись о диалогах, в которых состоит пользователь user,
+     * обработав результаты запроса к таблице записей о диалогах из БД и приведя их к нужному типу
      * @param anoWindow главное окно со всеми его свойствами,
      *                  в том числе с БД, которая необходима для работы метода
-     * @return список диалогов ChatListRow, выгруженный из БД и приведенный к нужному типу
+     * @return словарь id собеседников -> запись о диалогах
      */
-    public ArrayList<ChatListRow> parseChatListRows(AnoWindow anoWindow) {
-        ArrayList<ChatListRow> chatListRows = new ArrayList<>();
+    public LinkedHashMap<Integer, ChatListRow> parseInterlocutorIdsAndChatListRows(AnoWindow anoWindow) {
+        LinkedHashMap<Integer, ChatListRow> interlocutorIdsAndChatListRows = new LinkedHashMap<>();
         ArrayList<ArrayList<Object>> chatListWhereId = getChatListRowsFromDB(this, anoWindow);
         //приведение выгрузки из БД к нормальному типу
         for (var chatListCells : chatListWhereId) {
-            chatListRows.add(
-                    //конструктор проверит, если такой записи нет в БД, то создаст ее.
-                    new ChatListRow(
-                            (Integer)chatListCells.get(1),    //user1
-                            (Integer)chatListCells.get(2),    //user2
-                            (String)chatListCells.get(4),     //comment
-                            anoWindow
-                    )
+            System.out.println("--- Создание chatListRow");
+            //конструктор проверит, если такой записи нет в БД, то создаст ее.
+            ChatListRow chatListRow = new ChatListRow(
+                    (Integer)chatListCells.get(1),    //user1
+                    (Integer)chatListCells.get(2),    //user2
+                    (String)chatListCells.get(4),     //comment
+                    anoWindow
             );
+            Integer interlocutorId = calculateInterlocutorId(chatListRow);
+            interlocutorIdsAndChatListRows.put(interlocutorId, chatListRow);
         }
-        return chatListRows;
+        return interlocutorIdsAndChatListRows;
     }
     /**
      * Метод, получающий из БД список записей о диалогах для пользователя.
@@ -152,15 +169,63 @@ public class User {
         return anoWindow.getDb().selectAllChatListRowWhereId(user);
     }
 
-    //todo наверно стоит соединить с parseChatListRows(..) в один метод, чтоб не дублировать запрос в БД
-    // с другой стороны - это по идее один раз при регистрации пользователя - ДУМАТЬ!
-    // Но как ни крути не нравится дублирование запроса в БД
-    private ArrayList<Chat> parseChats(AnoWindow anoWindow) {
-        ArrayList<Chat> chats = new ArrayList<>();
-        ArrayList<ArrayList<Object>> chatListWhereId = getChatListRowsFromDB(this, anoWindow);
-        for (var chatListCells : chatListWhereId) {
-            chats.add(new Chat((String)chatListCells.get(3), anoWindow));
+    /**
+     * Получает словарь login собеседников -> запись о диалогах, в которых состоит пользователь user,
+     * обработав результаты запроса к таблице пользователей из БД и приведя их к нужному типу
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     * @return словарь login собеседников -> запись о диалогах
+     */
+    private LinkedHashMap<String, ChatListRow> parseInterlocutorLoginsAndChatListRows(AnoWindow anoWindow) {
+        LinkedHashMap<String, ChatListRow> interlocutorLoginsAndChatListRows = new LinkedHashMap<>();
+        ArrayList interlocutorIds = new ArrayList<>(interlocutorIdsAndChatListRows.keySet());
+        ArrayList<ArrayList<Object>> interlocutorIdsAndLogins = getIdsAndLoginsFromDB(interlocutorIds, anoWindow);
+        for (ArrayList<Object> interlocutorIdAndLogin : interlocutorIdsAndLogins) {
+            String interlocutorLogin = (String) interlocutorIdAndLogin.get(1);
+            Integer interlocutorId = (Integer) interlocutorIdAndLogin.get(0);
+            ChatListRow interlocutorChatListRow = interlocutorIdsAndChatListRows.get(interlocutorId);
+            interlocutorLoginsAndChatListRows.put(
+                    interlocutorLogin,
+                    interlocutorChatListRow
+            );
+        }
+        return interlocutorLoginsAndChatListRows;
+    }
+    /**
+     * Метод, получающий из таблицы пользователей БД для данных id, две колонки: id и login
+     * Все полученные данные - таблица Object
+     * @param interlocutorIds список id, для которых нужно получить результат
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     * @return
+     */
+    private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList interlocutorIds, AnoWindow anoWindow) {
+        return anoWindow.getDb().selectIdsAndLoginsForIds(interlocutorIds);
+    }
+
+    /**
+     * Создает словарь id собеседника->Чат для пользователя, не обращаясь к БД,
+     * на основе уже заполненного словаря interlocutorIdsAndChatListRows (id собеседника->запись о диалоге)
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     * @return словарь id собеседника->Чат для пользователя
+     */
+    private LinkedHashMap<Integer, Chat> parseChats(AnoWindow anoWindow) {
+        LinkedHashMap<Integer, Chat> chats = new LinkedHashMap<>();
+        for (var interlocutorIdAndChatListRow : interlocutorIdsAndChatListRows.entrySet()) {
+            Integer interlocutorId = interlocutorIdAndChatListRow.getKey();
+            Chat interlocutorChat = new Chat(interlocutorIdAndChatListRow.getValue().getTableName(), anoWindow);
+            chats.put(interlocutorId, interlocutorChat);
         }
         return chats;
+    }
+
+    /**
+     * Рассчитывает id собеседника для пользователя, имея запись о диалоге
+     * @param chatListRow запись о диалоге
+     * @return id собеседника
+     */
+    public Integer calculateInterlocutorId(ChatListRow chatListRow){
+        return chatListRow.getUserIdMin() + chatListRow.getUserIdMax() - id;
     }
 }

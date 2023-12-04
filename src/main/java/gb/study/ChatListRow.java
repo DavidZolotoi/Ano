@@ -1,45 +1,66 @@
 package gb.study;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 public class ChatListRow {
     private Integer id;    //заполняется при добавлении в БД, выгрузкой из неё присвоенного id
-    private Integer userIdMin;
-    private Integer userIdMax;
-    private String tableName;
-    private String comment;
-
     protected Integer getId() {
         return id;
     }
 
+    private Integer userIdMin;
     protected Integer getUserIdMin() {
         return userIdMin;
     }
 
+    private Integer userIdMax;
     protected Integer getUserIdMax() {
         return userIdMax;
     }
 
+    private String tableName;
     protected String getTableName() {
         return tableName;
     }
 
+    private String comment;
     protected String getComment() {
         return comment;
     }
 
-    public ChatListRow() {
+    enum NAME {SCHEMA, TABLE, TRIGGER, FUNCTION, NOTIFY}
+    private LinkedHashMap<NAME, String> nameFromDB;
+    public LinkedHashMap<NAME, String> getNameFromDB() {
+        return nameFromDB;
     }
 
     public ChatListRow(Integer user1, Integer user2, String comment, AnoWindow anoWindow) {
         this.userIdMin = Integer.min(user1, user2);
         this.userIdMax = Integer.max(user1, user2);
-        this.tableName = "public.zz" + this.userIdMin + "yy" + this.userIdMax;
+        this.nameFromDB = createNames(this.userIdMin, this.userIdMax);
+        this.tableName = this.nameFromDB.get(NAME.TABLE);
         this.comment = comment;
         // получить из БД присвоенный id, добавив данные в БД, если их там нет
         this.id = getParseIdFromBD(anoWindow);
     }
+    /**
+     * Создает словарь имён - некая договоренность о том, как должны называться элементы словаря
+     * @param usIdMin меньший по значению id собеседника
+     * @param usIdMax больший по значению id собеседника
+     * @return готовый словарь имён (схемы, таблицы, триггера, функции, уведомления)
+     */
+    private LinkedHashMap<NAME, String> createNames(Integer usIdMin, Integer usIdMax) {
+        LinkedHashMap<NAME, String> names = new LinkedHashMap<>();
+        names.put(NAME.SCHEMA, "public");
+        String tableNameWithoutScheme = "zz" + usIdMin + "yy" + usIdMax;
+        names.put(NAME.TABLE, names.get(NAME.SCHEMA) + "." + tableNameWithoutScheme);
+        names.put(NAME.TRIGGER, "newmes_" + tableNameWithoutScheme + "_trigger");
+        names.put(NAME.FUNCTION, "public.notify_newmes_" + tableNameWithoutScheme + "()");
+        names.put(NAME.NOTIFY, "newmes_" + tableNameWithoutScheme);
+        return names;
+    }
+
     /**
      * Метод, получающий из БД id, присвоенный для chatListRow,
      * обработав результаты выгрузки из БД и приведя их к нужному типу
@@ -89,9 +110,9 @@ public class ChatListRow {
         anoWindow.getDb().createNewTableForChat(this);
         // 3) добавление внешних ключей к таблице диалога
         anoWindow.getDb().addForeignKeyForChat(this);
-        // 4) добавление отдельной функции для создания уведомлений для прослушивания
+        // 4) добавление отдельной функции для создания уведомлений для прослушивания + обновление словаря имен
         anoWindow.getDb().createFunctionNotifyForNewMessage(this);
-        // 5) добавление к таблице триггера, вызывающей функцию уведомлений
+        // 5) добавление к таблице триггера, вызывающей функцию уведомлений + использование и обновление сл.имен
         anoWindow.getDb().createTriggerForExecuteProcedure(this);
     }
 

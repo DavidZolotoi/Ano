@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 public class TabSettingsPanel extends JPanel {
     // ОБЩЕЕ окно
@@ -106,10 +107,10 @@ public class TabSettingsPanel extends JPanel {
 
     }
 
-    ActionListener logingActionListener = new ActionListener() {
+    final ActionListener logingActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            // Взаимодействие с БД (может быть стоить опустить сюда по ближе ее создание)
+            // Взаимодействие с БД - начало
             // 0. Идентификация юзера (логин) и подтверждение (пароль), а также получение его id из БД
             //todo прочитать из вкладки настроек
             anoWindow.setUser(
@@ -124,37 +125,41 @@ public class TabSettingsPanel extends JPanel {
                             anoWindow
                     )
             );
-            // 1. Загрузка списка диалогов с этим юзером
-            // 1) рассчитать id собеседников
-            ArrayList<Integer> idInterlocutor = new ArrayList<>();
-            for (var chatListRow : anoWindow.getUser().getChatListRows()) {
-                idInterlocutor.add(
-                        chatListRow.getUserIdMin() + chatListRow.getUserIdMax() - anoWindow.getUser().getId()
-                );
-            }
-            // 2) по id собеседников получить их логины
-            var loginInterlocutorTableObj = anoWindow.getDb().selectLoginsForUserIds(idInterlocutor);
-            ArrayList<String> loginInterlocutor = new ArrayList<>();
-            for (ArrayList<Object> loginRow : loginInterlocutorTableObj) {
-                loginInterlocutor.add((String) loginRow.get(0));
-            }
-            // 3) добавить JTextArea с его логином
-            for (var login : loginInterlocutor) {
-                System.out.println(loginInterlocutor);
-                JTextArea loginTextArea = new JTextArea(login);
+            // 1. Загрузка списка диалогов с этим юзером, с повешанными обработчиками
+            // При создании пользователя у него создадутся два словаря:
+            // - словарь id->запись о диалоге (1 запрос к записям о диалогах)
+            // - словарь логин->запись о диалоге (1 запрос к юзерам) - используем его
+            LinkedHashMap<String, ChatListRow> interlocutorLoginsAndChatListRows =
+                    anoWindow.getUser().getInterlocutorLoginsAndChatListRows();
+            for (var interlocutorLoginAndChatListRow : interlocutorLoginsAndChatListRows.entrySet()) {
+                String interlocutorLogin = interlocutorLoginAndChatListRow.getKey();
+                ChatListRow interlocutorChatListRow = interlocutorLoginAndChatListRow.getValue();
+                System.out.println(interlocutorLogin + " " + interlocutorChatListRow.getTableName());
+                // 1.1. добавить JTextArea с его логином
+                JTextArea loginTextArea = new JTextArea(interlocutorLogin);
                 loginTextArea.setEditable(false);
                 loginTextArea.setLineWrap(true);
                 loginTextArea.setWrapStyleWord(true);
                 anoWindow.tabChatPanel.leftPanel.add(loginTextArea);
-                // 4) повесить на него обработчик клика - загрузка последних N сообщений диалога
+                // 1.2. повесить на него обработчик клика:
                 loginTextArea.addMouseListener(new MouseAdapter() {
                     public void mouseReleased(MouseEvent e) {
-                        anoWindow.tabChatPanel.downloadAndPasteLastMessagesToHistoryPanel();
+                        Integer idInterlocutor = anoWindow.getUser().calculateInterlocutorId(interlocutorChatListRow);
+                        //1.2.1. Загрузка сообщений из БД в хранилище (конкретный чат из словаря) юзера и на окно
+                        anoWindow.getUser().getChats().get(idInterlocutor).downloadLastMessages(
+                                interlocutorChatListRow,
+                                Integer.parseInt(countMesForDownValueTextArea.getText()),
+                                anoWindow
+                        );
+                        //1.2.2. Обозначение записи об открытом диалоге-чате активным у юзера
+                        anoWindow.getUser().setActiveChatListRow(interlocutorChatListRow);
                     }
                 });
+                // 1.3. запустить его прослушивание:
+                //todo на этом месте вся система зависает - нужна многопоточность
+                //anoWindow.getDb().startListenerChat(interlocutorChatListRow, anoWindow);
             }
-            // 2. Запуск прослушивания БД
-            anoWindow.getDb().startListenerChat(anoWindow);
+            // 2. Запуск прослушивания сообщения от неизвестного???? Думать - видимо триггер к записям
         }
     };
 }

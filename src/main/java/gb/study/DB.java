@@ -124,40 +124,48 @@ public class DB {
     }
 
 
-
-    public ArrayList<Message> getLastMessages(int countMessagesDownloadAtStart) {
-        ArrayList<Message> lastMessages = new ArrayList<>(countMessagesDownloadAtStart);
-        lastMessages.add(new Message("...", "..."));
-
-        //todo в будущем сортировку надо сделать по дате, а не по id
+    /**
+     * Метод, получающий из БД последние countMessagesDownloadAtStart сообщений из определенного чата
+     * @param chatListRow запись о диалоге, содержащая название чата
+     * @param countMessagesDownloadAtStart количество последних сообщений, которое необходимо получить из БД
+     */
+    public ArrayList<ArrayList<Object>> selectLastMessages(ChatListRow chatListRow, int countMessagesDownloadAtStart) {
         String downloadQuery =
-                "SELECT id, mes FROM " +
-                        "(SELECT id, mes FROM messagestable ORDER BY id DESC LIMIT " + countMessagesDownloadAtStart + ") " +
-                        "AS subquery ORDER BY id ASC";
-        try (ResultSet newRowFromSQL = stmtForListen.executeQuery(downloadQuery)) {
-            while (newRowFromSQL.next()) {
-                String id = newRowFromSQL.getString("id");
-                String mes = newRowFromSQL.getString("mes");
-                lastMessages.add(new Message(id, mes));
-                //показ сообщений
-                //if (!printMessage(id, mes)) System.out.println("НЕ ВЫПОЛНЕНО: Проблема с показом загруженного сообщения");
-            }
-        } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с загрузкой последних сообщений");
-        }
-
-        return lastMessages;
+                "SELECT * " +
+                "FROM " +
+                    "(SELECT * from " + chatListRow.getTableName() + " " +
+                    "ORDER BY " + "mes_datetime" + " DESC LIMIT " + countMessagesDownloadAtStart + ") " +
+                "AS last_message_not_ordered " +
+                "ORDER BY " + "mes_datetime" + " ASC;";
+        return executeQueryReport(downloadQuery);
     }
 
-
-    public void sendNewMessage(Message message) {
+    /**
+     * Отправляет сообщение в БД в таблицу, название которой, указанно в записи о диалоге
+     * @param message сообщение
+     * @param chatListRow запись о диалоге
+     */
+    public void sendNewMessage(Message message, ChatListRow chatListRow) {
         String queryForInsertNewMessage =
-                "INSERT INTO messagestable (id, mes) " +
-                "VALUES ('" + message.author + "', '" + message.text + "')";
+                "INSERT INTO " + chatListRow.getTableName() + " (" +
+                        "mes_author_id, " +
+                        "mes_content, " +
+                        "mes_datetime, " +
+                        "mes_comment" +
+                        ") " +
+                "VALUES (" +
+                        message.getAuthorId() + ", " +
+                        "'" + message.getContent() + "', " +
+                        "'" + message.getDatetime() + "', " +
+                        "'" + message.getComment() + "'" +
+                        ");";
         try {
             stmtForSend.execute(queryForInsertNewMessage);
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с stmt2.execute(insertQuery): \n" + e.getMessage());
+            System.out.println(
+                    "НЕ ВЫПОЛНЕНО: Проблема с stmtForSend.execute(insertQuery): \n" + e.getMessage() +
+                            "\nВот код запроса:\n" + queryForInsertNewMessage
+            );
         }
     }
 
@@ -213,12 +221,14 @@ public class DB {
      * @param anoWindow ссылка на окно,
      *                  в котором есть метод, вставляющий новые сообщения в свое место на окне
      */
-    public void startListenerChat(AnoWindow anoWindow) {    //todo может исправить на фрейм, а потом преобразовать?
-        String listenQuery = "LISTEN message_inserted";
+    public void startListenerChat(ChatListRow chatListRow, AnoWindow anoWindow) {
+        System.out.println("--- DB метод прослушки чата");
+        String notifyName = chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
+        String listenQuery = "LISTEN " + notifyName;
         try {
             stmtForListen.execute(listenQuery);
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: LISTEN message_inserted");
+            System.out.println("НЕ ВЫПОЛНЕНО: LISTEN " + notifyName);
         }
 
         PGConnection pgConn = (PGConnection)connForListen;
@@ -230,12 +240,19 @@ public class DB {
                 throw new RuntimeException(e);
             }
             if (notifications != null) {
+                Integer idInterlocutor = anoWindow.getUser().calculateInterlocutorId(chatListRow);
                 for (PGNotification notification : notifications) {
                     String[] parts = notification.getParameter().split("\\|");
-                    String author = parts[0];
-                    String mesText = parts[1];
-                    //Вставка и показ сообщений
-                    anoWindow.tabChatPanel.addAndShowNewMessage(new Message(author, mesText));
+                    Integer id = Integer.parseInt(parts[0]);
+                    Integer authorId = Integer.parseInt(parts[1]);
+                    String content = parts[2];
+                    Timestamp datetime =  Timestamp.valueOf(parts[3]);
+                    String comment = parts[4];
+                    //Вставка и показ сообщений в чат и в окно
+                    anoWindow.getUser().getChats().get(idInterlocutor).setNewMessage(
+                            new Message(id, authorId, content, datetime, comment),
+                            anoWindow
+                    );
                     audioNotification();
                 }
             }
@@ -371,39 +388,49 @@ public class DB {
     }
 
     /**
-     * Метод, добавляющий функцию уведомлений для новой таблицы диалога
+     * Метод, добавляющий функцию уведомлений для новой таблицы диалога.
+     * Также обновляет имена в словаре chatListRow
+     * для создаваемой функции уведомлений и создаваемой её уведомлений для прослушивания.
      * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
      */
     public void createFunctionNotifyForNewMessage(ChatListRow chatListRow) {
-        String newTableNameWithoutScheme = chatListRow.getTableName().replace("public.", "");
+        String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
+        String notifyName =  chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
         String queryForCreateFunctionNotify =
-                "CREATE OR REPLACE FUNCTION notify_newmes_" + newTableNameWithoutScheme + "() RETURNS trigger AS $$ " +
-                        "DECLARE " +
-                        "BEGIN " +
-                        "  PERFORM pg_notify(" +
-                        "'newmes_" + newTableNameWithoutScheme + "', " +
-                        "NEW.mes_author_id || '|' || mes_content || '|' || mes_datetime || '|' || mes_comment" +
-                        "); " +
-                        "  RETURN NEW; " +
-                        "END; " +
-                        "$$ LANGUAGE plpgsql;"
-                ;
+                "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
+                " RETURNS trigger\n" +
+                " LANGUAGE plpgsql\n" +
+                "AS $function$\n" +
+                "DECLARE\n" +
+                "BEGIN\n" +
+                "  PERFORM pg_notify(" +
+                          "'" + notifyName + "', " +
+                          "NEW.mes_author_id || '|' || mes_content || '|' || mes_datetime || '|' || mes_comment" +
+                      ");\n" +
+                "  RETURN NEW;\n" +
+                "END;\n" +
+                "$function$\n" +
+                ";"
+        ;
         executeQueryVoid(queryForCreateFunctionNotify);
     }
 
     /**
      * Метод, создающий триггер для новой таблицы диалога,
-     * который будет вызывать функцию уведомлений, при добавлении новой записи о диалоге в таблицу
+     * который будет вызывать функцию уведомлений, при добавлении новой записи о диалоге в таблицу.
+     * Также обновляет имя триггера в словаре chatListRow.
      * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
      */
     public void createTriggerForExecuteProcedure(ChatListRow chatListRow) {
-        String newTableNameWithoutScheme = chatListRow.getTableName().replace("public.", "");
+        String tableName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TABLE);
+        String triggerName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TRIGGER);
+        String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
         String queryForCreateTrigger =
-                "CREATE TRIGGER newmes_" + newTableNameWithoutScheme + "_trigger" + " " +
+                "CREATE TRIGGER " + triggerName + " " +
                         "AFTER INSERT" + " " +
-                        "ON public." + newTableNameWithoutScheme + " " +
+                        "ON " + tableName + " " +
                         "FOR EACH ROW" + " " +
-                        "EXECUTE PROCEDURE public.notify_newmes_" + newTableNameWithoutScheme + "();"
+                        "EXECUTE PROCEDURE " + functionName + ";"
                 ;
         executeQueryVoid(queryForCreateTrigger);
     }
@@ -436,25 +463,37 @@ public class DB {
     }
 
     /**
-     * Метод, получающий из БД логины пользователей по их id
+     * Метод, получающий из БД id и логины пользователей по их id
      * @param userIds id пользователей
-     * @return логины пользователей
+     * @return id и логины пользователей
      */
-    public ArrayList<ArrayList<Object>> selectLoginsForUserIds(ArrayList<Integer> userIds) {
-        String queryForSelectLoginForUserIdPart1 =
-                "SELECT login FROM " + DB.settings.get("table_name_for_user") + " " +
+    public ArrayList<ArrayList<Object>> selectIdsAndLoginsForIds(ArrayList<Integer> userIds) {
+        String queryForSelectIdsAndLoginsForIdsPart1 =
+                "SELECT id, login FROM " + DB.settings.get("table_name_for_user") + " " +
                 "WHERE id = " + userIds.get(0);
-        StringBuilder queryForSelectLoginForUserIdPart2 = new StringBuilder("");
+        StringBuilder queryForSelectIdsAndLoginsForIdsPart2 = new StringBuilder("");
         if (userIds.size()>0){
             for (int i = 1; i < userIds.size(); i++) {
-                queryForSelectLoginForUserIdPart2.append(" or id = ").append(userIds.get(i));
+                queryForSelectIdsAndLoginsForIdsPart2.append(" or id = ").append(userIds.get(i));
             }
         }
-        queryForSelectLoginForUserIdPart2.append(";");
+        queryForSelectIdsAndLoginsForIdsPart2.append(";");
 
-        String queryForSelectLoginForUserId =
-                queryForSelectLoginForUserIdPart1 + queryForSelectLoginForUserIdPart2;
+        String queryForSelectIdsAndLoginsForIds =
+                queryForSelectIdsAndLoginsForIdsPart1 + queryForSelectIdsAndLoginsForIdsPart2;
 
-        return executeQueryReport(queryForSelectLoginForUserId);
+        return executeQueryReport(queryForSelectIdsAndLoginsForIds);
     }
 }
+
+
+// СПОСОБ ЗАГРУЗКИ ИЗ БД ПО НАЗВАНИЮ КОЛОНКИ
+//        try (ResultSet newRowFromSQL = stmtForListen.executeQuery(downloadQuery)) {
+//            while (newRowFromSQL.next()) {
+//                String id = newRowFromSQL.getString("id");
+//                String mes = newRowFromSQL.getString("mes");
+//                lastMessages.add(new Message(id, mes));
+//            }
+//        } catch (SQLException e) {
+//            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с загрузкой последних сообщений");
+//        }

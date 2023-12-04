@@ -131,9 +131,13 @@ VALUES
 INSERT INTO public.zz1yy5 (mes_author_id, mes_content, mes_datetime, mes_comment)
 VALUES
     (1, 'Сообщение 5', '2023-11-26 12:00:05', 'Комментарий к сообщению 5');
-   
--- показать всё содержимое
-select * from public.zz1yy5;
+INSERT INTO public.zz1yy5 (mes_author_id, mes_content, mes_datetime, mes_comment)
+VALUES
+    (5, 'Сообщение 6', '2023-11-26 12:00:06', 'Комментарий к сообщению 6');
+INSERT INTO public.zz1yy5 (mes_author_id, mes_content, mes_datetime, mes_comment)
+values
+	(5, 'Сообщение 7', '2023-12-05 01:25:47.6917193', 'Комментарий к сообщению 7');   
+
 
 -- Эта функция создаст уведомление с именем "newmes_zz1yy5" - это для слушателя java: String listenQuery = "LISTEN message_inserted";
 -- и передаст в него значения колонок (mes_author_id, mes_content, mes_datetime, mes_comment) новой строки в таблице
@@ -156,6 +160,21 @@ CREATE TRIGGER newmes_zz1yy5_trigger
     FOR EACH ROW
     EXECUTE PROCEDURE public.notify_newmes_zz1yy5();
 
+-- Удаление: триггер - функция - таблица
+      
+-- показать всё содержимое
+select * from public.zz1yy5;
+
+-- загрузить последние 20 сообщений
+SELECT
+	*
+FROM
+	(SELECT	* from zz1yy5
+	ORDER BY mes_datetime DESC LIMIT 20)
+AS last_message_not_ordered
+ORDER BY mes_datetime ASC;
+   
+   
 
 
 /*----------------------------------------------------------------*/
