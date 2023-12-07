@@ -134,9 +134,9 @@ public class DB {
                 "SELECT * " +
                 "FROM " +
                     "(SELECT * from " + chatListRow.getTableName() + " " +
-                    "ORDER BY " + "mes_datetime" + " DESC LIMIT " + countMessagesDownloadAtStart + ") " +
+                    "ORDER BY " + "zydatetime" + " DESC LIMIT " + countMessagesDownloadAtStart + ") " +
                 "AS last_message_not_ordered " +
-                "ORDER BY " + "mes_datetime" + " ASC;";
+                "ORDER BY " + "zydatetime" + " ASC;";
         return executeQueryReport(downloadQuery);
     }
 
@@ -148,10 +148,10 @@ public class DB {
     public void sendNewMessage(Message message, ChatListRow chatListRow) {
         String queryForInsertNewMessage =
                 "INSERT INTO " + chatListRow.getTableName() + " (" +
-                        "mes_author_id, " +
-                        "mes_content, " +
-                        "mes_datetime, " +
-                        "mes_comment" +
+                        "zyauthorid, " +
+                        "zycontent, " +
+                        "zydatetime, " +
+                        "zycomment" +
                         ") " +
                 "VALUES (" +
                         message.getAuthorId() + ", " +
@@ -221,16 +221,27 @@ public class DB {
      * @param anoWindow ссылка на окно,
      *                  в котором есть метод, вставляющий новые сообщения в свое место на окне
      */
-    public void startListenerChat(ChatListRow chatListRow, AnoWindow anoWindow) {
-        System.out.println("--- DB метод прослушки чата");
-        String notifyName = chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
-        String listenQuery = "LISTEN " + notifyName;
-        try {
-            stmtForListen.execute(listenQuery);
-        } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: LISTEN " + notifyName);
+    public void startListenerChat(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+        System.out.println("--- DB метод прослушки чатов");
+        ArrayList<String> notifyNames = new ArrayList<>();
+        ArrayList<String>  listenQuerys = new ArrayList<>();
+        for (var chatListRow : chatListRows) {
+            String notifyName = chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
+            notifyNames.add(notifyName);
+            listenQuerys.add("LISTEN " + notifyName);
         }
 
+        String listenQueryForCatch = "";
+        try {
+            for (var listenQuery : listenQuerys) {
+                listenQueryForCatch = listenQuery;
+                stmtForListen.execute(listenQuery);
+            }
+        } catch (SQLException e) {
+            System.out.println("НЕ ВЫПОЛНЕНО: " + listenQueryForCatch);
+        }
+
+        //Уведомление для всех каналов при данном подключении
         PGConnection pgConn = (PGConnection)connForListen;
         while (true) {
             PGNotification[] notifications = new PGNotification[0];
@@ -240,7 +251,7 @@ public class DB {
                 throw new RuntimeException(e);
             }
             if (notifications != null) {
-                Integer idInterlocutor = anoWindow.getUser().calculateInterlocutorId(chatListRow);
+                Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRows.get(0));
                 for (PGNotification notification : notifications) {
                     String[] parts = notification.getParameter().split("\\|");
                     Integer id = Integer.parseInt(parts[0]);
@@ -249,7 +260,7 @@ public class DB {
                     Timestamp datetime =  Timestamp.valueOf(parts[3]);
                     String comment = parts[4];
                     //Вставка и показ сообщений в чат и в окно
-                    anoWindow.getUser().getChats().get(idInterlocutor).setNewMessage(
+                    anoWindow.getUser().getChats().get(idDisputer).setNewMessage(
                             new Message(id, authorId, content, datetime, comment),
                             anoWindow
                     );
@@ -258,7 +269,7 @@ public class DB {
             }
 
             try {
-                Thread.sleep(500);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 // обработка ошибок
             }
@@ -286,8 +297,8 @@ public class DB {
      */
     public ArrayList<ArrayList<Object>> selectIdLoginPasswordForUser(User user) {
         String queryForGetIdLoginPassword =
-                "SELECT id, login, password FROM " + DB.settings.get("table_name_for_user") + " " +
-                        "WHERE login = '" + user.getLogin() + "'";
+                "SELECT usid, uslogin, uspassword FROM " + DB.settings.get("table_name_for_user") + " " +
+                        "WHERE uslogin = '" + user.getLogin() + "'";
         return executeQueryReport(queryForGetIdLoginPassword);
     }
 
@@ -299,13 +310,13 @@ public class DB {
         String queryForInsertNewUser =
                 "INSERT INTO " + DB.settings.get("table_name_for_user") +
                         "(" +
-                        "login" + ", " +
-                        "password" + ", " +
-                        "first_name" + ", " +
-                        "last_name" + ", " +
-                        "mail" + ", " +
-                        "phone" + ", " +
-                        "comment" +
+                        "uslogin" + ", " +
+                        "uspassword" + ", " +
+                        "usfirstname" + ", " +
+                        "uslastname" + ", " +
+                        "usmail" + ", " +
+                        "usphone" + ", " +
+                        "uscomment" +
                         ")" +
                         "VALUES" +
                         "(" +
@@ -318,35 +329,29 @@ public class DB {
                         "'" + user.getComment() + "'," +
                         ");";
         executeQueryVoid(queryForInsertNewUser);
-
-        //ПОЛУЧИТЬ id запросом в БД и вернуть его
-//        String queryForReport = "select id" + " " +
-//                "from " + DB.settings.get("table_name_for_user") + " " +
-//                "where login = '" + this.login + "';";
-//        return executeQueryReport(queryForReport);
     }
 
     /**
-     * Метод, получающий id из таблицы chat_list в БД.
+     * Метод, получающий id из таблицы chatlist в БД.
      * @param chatListRow запись о диалоге
      * @return id записи о диалоге
      */
     public ArrayList<ArrayList<Object>> selectIdForChatListRow(ChatListRow chatListRow) {
         String queryForSelectId =
-                "SELECT id FROM " + DB.settings.get("table_name_for_chat_list") + " " +
-                        "WHERE table_name = '" + chatListRow.getTableName() + "'";
+                "SELECT clid FROM " + DB.settings.get("table_name_for_chat_list") + " " +
+                        "WHERE cltablename = '" + chatListRow.getTableName() + "'";
         // может вернуться null - обработать выше по уровню
         return executeQueryReport(queryForSelectId);
     }
 
     /**
-     * Метод, добавляющий запись о диалоге (новую строку в таблице chat_list)
+     * Метод, добавляющий запись о диалоге (новую строку в таблице chatlist)
      * @param chatListRow объект записи, которую необходимо добавить
      */
     public void insertNewChatListRow(ChatListRow chatListRow) {
         String queryForInsertChatList =
                 "INSERT INTO " + DB.settings.get("table_name_for_chat_list") + " " +
-                        "(userid_min, userid_max, table_name, comment) " +
+                        "(cluseridmin, cluseridmax, cltablename, clcomment) " +
                         "values (" +
                         chatListRow.getUserIdMin() + "," +
                         chatListRow.getUserIdMax() + "," +
@@ -358,31 +363,31 @@ public class DB {
     }
 
     /**
-     * Метод, создающий новую таблицу для диалога с наименованием в соответствии с записью о диалоге в таблице chat_list
+     * Метод, создающий новую таблицу для диалога с наименованием в соответствии с записью о диалоге в таблице chatlist
      * @param chatListRow объект записи, содержащий наименование таблицы (tableName)
      */
     public void createNewTableForChat(ChatListRow chatListRow) {
         String queryForCreateNewTable =
                 "CREATE TABLE IF NOT EXISTS " + chatListRow.getTableName() + " (" +
-                        "id SERIAL PRIMARY KEY, " +
-                        "mes_author_id integer NOT null, " +
-                        "mes_content varchar(1000) null, " +
-                        "mes_datetime timestamp NOT null, " +
-                        "mes_comment varchar(256) null" +
+                        "zyid SERIAL PRIMARY KEY, " +
+                        "zyauthorid integer NOT null, " +
+                        "zycontent varchar(1000) null, " +
+                        "zydatetime timestamp NOT null, " +
+                        "zycomment varchar(256) null" +
                         ");"
                 ;
         executeQueryVoid(queryForCreateNewTable);
     }
 
     /**
-     * Метод, добавляющий внешний ключ к колонке mes_author_id из диалога со ссылкой на колонку id таблицы user_list
+     * Метод, добавляющий внешний ключ к колонке zyauthorid из диалога со ссылкой на колонку usid таблицы user
      * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
      */
     public void addForeignKeyForChat(ChatListRow chatListRow) {
         String queryForAddForeignKey =
                 "ALTER TABLE " + chatListRow.getTableName() + " " +
-                        "ADD CONSTRAINT fk_mes_author_id FOREIGN KEY (mes_author_id) " +
-                        "REFERENCES " + DB.settings.get("table_name_for_user") + " (id);"
+                        "ADD CONSTRAINT fkzyauthorid FOREIGN KEY (zyauthorid) " +
+                        "REFERENCES " + DB.settings.get("table_name_for_user") + " (usid);"
                 ;
         executeQueryVoid(queryForAddForeignKey);
     }
@@ -397,20 +402,20 @@ public class DB {
         String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
         String notifyName =  chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
         String queryForCreateFunctionNotify =
-                "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
-                " RETURNS trigger\n" +
-                " LANGUAGE plpgsql\n" +
-                "AS $function$\n" +
-                "DECLARE\n" +
-                "BEGIN\n" +
-                "  PERFORM pg_notify(" +
-                          "'" + notifyName + "', " +
-                          "NEW.mes_author_id || '|' || mes_content || '|' || mes_datetime || '|' || mes_comment" +
-                      ");\n" +
-                "  RETURN NEW;\n" +
-                "END;\n" +
-                "$function$\n" +
-                ";"
+            "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
+            " RETURNS trigger\n" +
+            " LANGUAGE plpgsql\n" +
+            "AS $function$\n" +
+            "DECLARE\n" +
+            "BEGIN\n" +
+            "  PERFORM pg_notify(" +
+                  "'" + notifyName + "', " +
+                  "NEW.zyid || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment" +
+                  ");\n" +
+            "  RETURN NEW;\n" +
+            "END;\n" +
+            "$function$\n" +
+            ";"
         ;
         executeQueryVoid(queryForCreateFunctionNotify);
     }
@@ -444,23 +449,23 @@ public class DB {
         String queryForChatListRows =
                 "select *" + " " +
                         "from " + DB.settings.get("table_name_for_chat_list") + " " +
-                        "where userid_min = " + user.getId() + " or userid_max = " + user.getId() + ";";
+                        "where cluseridmin = " + user.getId() + " or cluseridmax = " + user.getId() + ";";
         return executeQueryReport(queryForChatListRows);
     }
 
-    /**
-     * Метод, получающий из БД id пользователей (userid_min, userid_max)
-     * из списка диалогов для пользователя
-     * @param chatListRow список диалогов пользователя
-     * @return id пользователей из списка диалогов для пользователя
-     */
-    public ArrayList<ArrayList<Object>> selectUserIdMinAndUserIdMax(ChatListRow chatListRow) {
-        String queryForSelectUserIdMinAndUserIdMax =
-                "select userid_min, userid_max" + " " +
-                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
-                        "where id = " + chatListRow.getId() + ";";
-        return executeQueryReport(queryForSelectUserIdMinAndUserIdMax);
-    }
+//    /**
+//     * Метод, получающий из БД id пользователей (useridmin, useridmax)
+//     * из списка диалогов для пользователя
+//     * @param chatListRow список диалогов пользователя
+//     * @return id пользователей из списка диалогов для пользователя
+//     */
+//    public ArrayList<ArrayList<Object>> selectUserIdMinAndUserIdMax(ChatListRow chatListRow) {
+//        String queryForSelectUserIdMinAndUserIdMax =
+//                "select userid_min, userid_max" + " " +
+//                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
+//                        "where id = " + chatListRow.getId() + ";";
+//        return executeQueryReport(queryForSelectUserIdMinAndUserIdMax);
+//    }
 
     /**
      * Метод, получающий из БД id и логины пользователей по их id
@@ -469,12 +474,12 @@ public class DB {
      */
     public ArrayList<ArrayList<Object>> selectIdsAndLoginsForIds(ArrayList<Integer> userIds) {
         String queryForSelectIdsAndLoginsForIdsPart1 =
-                "SELECT id, login FROM " + DB.settings.get("table_name_for_user") + " " +
-                "WHERE id = " + userIds.get(0);
+                "SELECT usid, uslogin FROM " + DB.settings.get("table_name_for_user") + " " +
+                "WHERE usid = " + userIds.get(0);
         StringBuilder queryForSelectIdsAndLoginsForIdsPart2 = new StringBuilder("");
         if (userIds.size()>0){
             for (int i = 1; i < userIds.size(); i++) {
-                queryForSelectIdsAndLoginsForIdsPart2.append(" or id = ").append(userIds.get(i));
+                queryForSelectIdsAndLoginsForIdsPart2.append(" or usid = ").append(userIds.get(i));
             }
         }
         queryForSelectIdsAndLoginsForIdsPart2.append(";");

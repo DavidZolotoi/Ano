@@ -4,22 +4,18 @@ import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 
 public class Chat {
-    //todo добавить в User Chat
     private String tableName;
     private LinkedHashMap<Integer, Message> messages;
-    public LinkedHashMap<Integer, gb.study.Message> getMessages() {
+    public LinkedHashMap<Integer, Message> getMessages() {
         return messages;
     }
+    private Integer idLastMessage;
 
     public Chat(String tableName, AnoWindow anoWindow) {
         this.tableName = tableName;
         this.messages = new LinkedHashMap<>();
-        //todo загрузку сообщений сделать отдельным методом,
-        // чтоб не грузить базу если диалог не открыт
-        // переселить в этот класс метод downloadAndPasteLastMessagesToHistoryPanel()
-        // и переименовать, его задача - выдать словарь сообщений
+        this.idLastMessage = 0;
     }
-    //..методы добавления, удаления и т.п. - управление хранилищем
 
     /**
      * Загрузить в чат и на окно последние messageCount сообщений для чата,
@@ -30,10 +26,10 @@ public class Chat {
      *                  в том числе с db и tabChatPanel, которая необходима для работы метода
      */
     protected void downloadLastMessages(ChatListRow chatListRow, Integer messageCount, AnoWindow anoWindow){
-        // для юзера anoWindow.getUser(),
-        // выбрать из коллекции чатов собеседника Interlocutor
-        // и загрузить count сообщений запросом в нужную таблицу
         for (var message : anoWindow.getDb().selectLastMessages(chatListRow, messageCount)) {
+            Integer newMessageId = (Integer) message.get(0);
+            if (newMessageId <= this.idLastMessage)
+                continue;   // не перерисовывать сообщение, которое уже нарисовано
             Message newMessage = new Message(
                     (Integer) message.get(0),
                     (Integer) message.get(1),
@@ -41,7 +37,7 @@ public class Chat {
                     (Timestamp) message.get(3),
                     (String) message.get(4)
             );
-
+            this.idLastMessage = newMessageId;
             setNewMessage(newMessage, anoWindow);
         }
     }

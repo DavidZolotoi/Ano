@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 ;
 
 public class TabChatPanel extends JPanel {
@@ -111,15 +112,11 @@ public class TabChatPanel extends JPanel {
         testTextArea.setEditable(false);
         testTextArea.setLineWrap(true);
         testTextArea.setWrapStyleWord(true);
-        //todo сделать метод, загружающий актуальные диалоги в левую панель
         leftPanel.add(testTextArea);
         // ПРАВАЯ панель
         add(rightPanel);
         // Добавление истории сообщений
         rightPanel.add(messageHistoryScroll);
-        // Загрузить последние N сообщений и вставить их на панель сообщений messageHistoryPanel
-        //todo загрузка сообщений должна происходить после выбора чата (клика)
-        //downloadAndPasteLastMessagesToHistoryPanel(); //todo надо проскроллить
         // Добавление нижней панели с инструментами для отправки письма
         rightPanel.add(bottomPanel);
         // Добавление поля для ввода в нижнюю панель
@@ -131,7 +128,7 @@ public class TabChatPanel extends JPanel {
     }
 
     /**
-     * Вставка нового сообщения на свое место в историю сообщений.
+     * Добавление нового сообщения на свое место в историю сообщений.
      * Вызывается в методе чата после загрузки сообщений.
      * @param message сообщение, которое нужно добавить
      */
@@ -156,6 +153,31 @@ public class TabChatPanel extends JPanel {
             anoWindow.repaint();     // Перерисовать
             //todo добавить прокрутку колесиком вниз истории сообщений
     }
+    /**
+     * Добавляет уже загруженные сообщения из словаря на свое место в историю сообщений.
+     * Вызывает в цикле метод добавления одного сообщения
+     * @param messages коллекция сообщений, которые необходимо добавить
+     */
+    protected void addAndShowMessagesFromList(ArrayList<Message> messages) {
+        if (messages.isEmpty()) return;
+        for (var message : messages) {
+            addAndShowNewMessage(message);
+        }
+    }
+
+    /**
+     * Очистить историю сообщений
+     */
+    protected void clearMessageHistoryPanel(){
+        Component[] components = messageHistoryPanel.getComponents();
+        for (Component component : components) {
+            if (component instanceof JTextArea) {
+                messageHistoryPanel.remove(component);
+            }
+        }
+        messageHistoryPanel.revalidate();
+        messageHistoryPanel.repaint();
+    }
 
     /**
      * Обработчик отправки письма в БД, сам запрос спрятан внутри метода
@@ -166,16 +188,18 @@ public class TabChatPanel extends JPanel {
             //отправить письмо в БД активного диалога, остальное должна сделать прослушка
             Integer authorId = anoWindow.getUser().getId();
             String mesContent = messageForSendTextArea.getText();
-            String mesComment = "Комментарий к сообщению 6";
+            String mesComment = "Комментарий к сообщению ";
             ChatListRow activeChatListRow = anoWindow.getUser().getActiveChatListRow();
-            Message messageForSend = new Message(
-                    authorId,
-                    mesContent,
-                    mesComment,
-                    activeChatListRow,
-                    anoWindow
+            new Message(
+                authorId,
+                mesContent,
+                mesComment,
+                activeChatListRow,
+                anoWindow
             );
             messageForSendTextArea.setText("");
+            messageHistoryPanel.revalidate();
+            messageHistoryPanel.repaint();
             messageForSendTextArea.requestFocus();
         }
     };

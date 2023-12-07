@@ -55,9 +55,9 @@ public class ChatListRow {
         names.put(NAME.SCHEMA, "public");
         String tableNameWithoutScheme = "zz" + usIdMin + "yy" + usIdMax;
         names.put(NAME.TABLE, names.get(NAME.SCHEMA) + "." + tableNameWithoutScheme);
-        names.put(NAME.TRIGGER, "newmes_" + tableNameWithoutScheme + "_trigger");
-        names.put(NAME.FUNCTION, "public.notify_newmes_" + tableNameWithoutScheme + "()");
-        names.put(NAME.NOTIFY, "newmes_" + tableNameWithoutScheme);
+        names.put(NAME.TRIGGER, "t" + tableNameWithoutScheme);
+        names.put(NAME.FUNCTION, "public.f" + tableNameWithoutScheme + "()");
+        names.put(NAME.NOTIFY, "n" + tableNameWithoutScheme);
         return names;
     }
 
