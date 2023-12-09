@@ -25,6 +25,9 @@ public class TabSettingsPanel extends JPanel {
     private JPanel rightPanel;
     private JTextArea countMesForDownTextArea;
     private JTextArea countMesForDownValueTextArea;
+    public JTextArea getCountMesForDownValueTextArea() {
+        return countMesForDownValueTextArea;
+    }
 
     public TabSettingsPanel(JFrame window) {
         super(new GridLayout(1, 2));
@@ -109,13 +112,14 @@ public class TabSettingsPanel extends JPanel {
 
     }
 
+    // Обработчик кнопки входа в систему
     final ActionListener logingActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
+            // 0.0. Идентификация юзера (логин) и подтверждение (пароль), а также получение его id из БД
             // Взаимодействие с БД - начало
-            // 0. Идентификация юзера (логин) и подтверждение (пароль), а также получение его id из БД
-            //todo прочитать из вкладки настроек
             anoWindow.setUser(
+                    //todo прочитать из вкладки настроек?
                     new User(
                             loginValueTextArea.getText(),
                             new String(passValuePasswordField.getPassword()),
@@ -127,17 +131,17 @@ public class TabSettingsPanel extends JPanel {
                             anoWindow
                     )
             );
-            user = anoWindow.getUser();
-            // 1. Загрузка списка диалогов с этим юзером, с повешанными обработчиками
             // При создании пользователя у него создадутся два словаря:
             // - словарь id->запись о диалоге (1 запрос к записям о диалогах)
             // - словарь логин->запись о диалоге (1 запрос к юзерам) - используем его
+            user = anoWindow.getUser();
+            // 1.0. Прогон по списку диалогов с этим юзером (disputer), с повешанными обработчиками
             for (var disputerLoginAndChatListRow :
                     user.getDisputerLoginsAndChatListRows().entrySet()) {
-                String disputerLogin = disputerLoginAndChatListRow.getKey();
-                ChatListRow disputerChatListRow = disputerLoginAndChatListRow.getValue();
-                System.out.println(disputerLogin + " " + disputerChatListRow.getTableName());
-                // 1.1. добавить JTextArea с его логином
+                ChatListRow disputerChatListRow =   disputerLoginAndChatListRow.getValue();
+                String disputerLogin =              disputerLoginAndChatListRow.getKey();
+                Integer disputerId =                user.calculateDisputerId(disputerChatListRow);
+                // 1.1. добавить JTextArea с его disputerLogin
                 JTextArea loginTextArea = new JTextArea(disputerLogin);
                 loginTextArea.setEditable(false);
                 loginTextArea.setLineWrap(true);
@@ -146,36 +150,41 @@ public class TabSettingsPanel extends JPanel {
                 // 1.2. обработчик клика по чату JTextArea:
                 loginTextArea.addMouseListener(new MouseAdapter() {
                     public void mouseReleased(MouseEvent e) {
-                        JTextArea source = (JTextArea) e.getSource();
-                        Integer idDisputer = anoWindow.getUser().calculateDisputerId(disputerChatListRow);
-                        //1.2.-1. проверка - если активный чат после клика не поменялся, то выходим
-                        if (!user.isChangeActiveChatListRow(source)) return;
-                        //1.2.0. Очистить чат и загрузить содержимое словаря
-                        anoWindow.tabChatPanel.clearMessageHistoryPanel();
-                        anoWindow.tabChatPanel.addAndShowMessagesFromList(
-                                new ArrayList<>(user.getChats().get(idDisputer).getMessages().values())
-                        );
-                        //1.2.1. Загрузка сообщений из БД в хранилище (конкретный чат из словаря) юзера и на окно
-                        //todo можно попробовать переделать на метод внутри tabChatPanel
-                        user.getChats().get(idDisputer).downloadLastMessages(
+                        JTextArea sourceLoginTextArea = (JTextArea) e.getSource();
+                        //1.2.0. проверка - если активный чат после клика не поменялся, то выходим
+                        if (!user.isChangeActiveChatListRow(sourceLoginTextArea)) return;
+                         //1.2.1. Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
+                        // в словарь добавляются только сообщения, которые еще не скачаны
+                        user.getChats().get(disputerId).downloadLastMessages(
                                 disputerChatListRow,
                                 Integer.parseInt(countMesForDownValueTextArea.getText()),
                                 anoWindow
+                        );
+                        //1.2.2. Добавить сообщения на экран
+                        // todo может быть стоит ограничить по количеству или вынести в асинхронный метод (если много)
+                        anoWindow.tabChatPanel.addAndShowMessagesFromList(
+                                new ArrayList<>(user.getChats().get(disputerId).getMessages().values())
                         );
                     }
                 });
             }
             // 2. Запустить асинхронное прослушивание этих каналов:
-            CompletableFuture<Void> future =
-                    listenerNewMessageAsync(
-                            new ArrayList<>(user.getDisputerLoginsAndChatListRows().values()),
-                            anoWindow
-                    );
-            // 3. Запуск прослушивания сообщения от неизвестного???? Думать - видимо триггер к записям
+            CompletableFuture<Void> futureListenerNewMessage = listenerNewMessageAsync(
+                    new ArrayList<>(user.getDisputerLoginsAndChatListRows().values()),
+                    anoWindow
+            );
+            // 3. Запуск асинхронное прослушивание нового чата с неизвестным
+            //  todo поймать уведомление о новом чате и обработать его:
+            // 1) добавить ее в коллекцию чатов к пользователю и на экран (работа с методом user.disputersUpdate())
+            // 2) добавить асинхронное прослушивание нового чата к тем, что уже прослушиваются
+            CompletableFuture<Void> futureListenerNewDisputer = listenerNewDisputerAsync(
+                    new ArrayList<>(user.getDisputerLoginsAndChatListRows().values()),
+                    anoWindow
+            );
         }
 
         /**
-         * Асинхронный метод прослушивания чатов
+         * Асинхронный метод прослушивания уведомлений о новых сообщениях
          * @param chatListRows записи о диалогах, которые необходимо прослушивать
          * @param anoWindow главное окно со всеми его свойствами,
          *                  в том числе с БД, которая необходима для работы метода
@@ -183,10 +192,23 @@ public class TabSettingsPanel extends JPanel {
          */
         private CompletableFuture<Void> listenerNewMessageAsync(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
             return CompletableFuture.runAsync(() -> {
-                System.out.println("Прослушивание каналов запущено.");
-                anoWindow.getDb().startListenerChat(chatListRows, anoWindow);
+                System.out.println("Прослушивание уведомлений о новых сообщениях запущено.");
+                anoWindow.getDb().startListenerNewMessage(chatListRows, anoWindow);
+            });
+        }
+
+        /**
+         * Асинхронный метод прослушивания уведомлений о добавлении новой записи о диалоге
+         * @param chatListRows записи о диалогах, которые необходимо прослушивать
+         * @param anoWindow главное окно со всеми его свойствами,
+         *                  в том числе с БД, которая необходима для работы метода
+         * @return
+         */
+        private CompletableFuture<Void> listenerNewDisputerAsync(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+            return CompletableFuture.runAsync(() -> {
+                System.out.println("Прослушивание уведомлений о добавлении новой записи о диалоге запущено.");
+                anoWindow.getDb().startListenerNewChatListRow(chatListRows, anoWindow);
             });
         }
     };
-
 }

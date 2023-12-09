@@ -35,7 +35,10 @@ public class ChatListRow {
         return nameFromDB;
     }
 
+    public ChatListRow() {}
+
     public ChatListRow(Integer user1, Integer user2, String comment, AnoWindow anoWindow) {
+        System.out.println("--- Создание (если нет) chatListRow");
         this.userIdMin = Integer.min(user1, user2);
         this.userIdMax = Integer.max(user1, user2);
         this.nameFromDB = createNames(this.userIdMin, this.userIdMax);
@@ -104,7 +107,7 @@ public class ChatListRow {
      *                  в том числе с БД, которая необходима для работы метода
      */
     public void createNewTableForChatAndConfigure(AnoWindow anoWindow){
-        // 1) добавить такую запись о диалоге в таблицу ChatListRow
+        // 1) добавить такую запись о диалоге в таблицу ChatListRow (появится уведомление о новом диалоге)
         anoWindow.getDb().insertNewChatListRow(this);
         // 2) добавить такую таблицу для диалога в БД
         anoWindow.getDb().createNewTableForChat(this);

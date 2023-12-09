@@ -221,61 +221,126 @@ public class DB {
      * @param anoWindow ссылка на окно,
      *                  в котором есть метод, вставляющий новые сообщения в свое место на окне
      */
-    public void startListenerChat(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
-        System.out.println("--- DB метод прослушки чатов");
-        ArrayList<String> notifyNames = new ArrayList<>();
-        ArrayList<String>  listenQuerys = new ArrayList<>();
+    public void startListenerNewMessage(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+        System.out.println("--- DB метод прослушки новых сообщений");
+        // Суммарный запрос для прослушки, состоящий из нескольких Listen notify...;...
+        StringBuilder queriesForListenNotify = new StringBuilder();
         for (var chatListRow : chatListRows) {
             String notifyName = chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
-            notifyNames.add(notifyName);
-            listenQuerys.add("LISTEN " + notifyName);
+            queriesForListenNotify.append("LISTEN ").append(notifyName).append("; ");
         }
 
-        String listenQueryForCatch = "";
+        // Выполнение запросов прослушки
         try {
-            for (var listenQuery : listenQuerys) {
-                listenQueryForCatch = listenQuery;
-                stmtForListen.execute(listenQuery);
-            }
+            stmtForListen.execute(queriesForListenNotify.toString());
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: " + listenQueryForCatch);
+            System.out.println("НЕ ВЫПОЛНЕНО: для прослушивания сообщений `stmtForListen.execute(queriesForListenNotify.toString());`");
         }
 
-        //Уведомление для всех каналов при данном подключении
-        PGConnection pgConn = (PGConnection)connForListen;
+        //Приём уведомлений от всех каналов при данном подключении
+        PGConnection pgConnForListen = (PGConnection)connForListen;
         while (true) {
-            PGNotification[] notifications = new PGNotification[0];
+            PGNotification[] newMessageNotifications = new PGNotification[0];
             try {
-                notifications = pgConn.getNotifications();
+                newMessageNotifications = pgConnForListen.getNotifications();
             } catch (SQLException e) {
+                System.out.println("НЕ ВЫПОЛНЕНО: `newMessageNotifications = pgConnForListen.getNotifications();`");
                 throw new RuntimeException(e);
             }
-            if (notifications != null) {
-                Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRows.get(0));
-                for (PGNotification notification : notifications) {
-                    String[] parts = notification.getParameter().split("\\|");
-                    Integer id = Integer.parseInt(parts[0]);
-                    Integer authorId = Integer.parseInt(parts[1]);
-                    String content = parts[2];
-                    Timestamp datetime =  Timestamp.valueOf(parts[3]);
-                    String comment = parts[4];
-                    //Вставка и показ сообщений в чат и в окно
-                    anoWindow.getUser().getChats().get(idDisputer).setNewMessage(
-                            new Message(id, authorId, content, datetime, comment),
+            if (newMessageNotifications != null) {
+                for (PGNotification newMessageNotification : newMessageNotifications) {
+                    String[] parts = newMessageNotification.getParameter().split("\\|");
+                    String tableName = parts[0];
+                    System.out.println("***Уведомление о новом сообщении в " + tableName);
+                    //todo по ходу нужно только название таблицы??? Тогда и структуру уведомления можно сократить
+                    Integer id = Integer.parseInt(parts[1]);
+                    Integer authorId = Integer.parseInt(parts[2]);
+                    String content = parts[3];
+                    Timestamp datetime =  Timestamp.valueOf(parts[4]);
+                    String comment = parts[5];
+                    // Определение записи о диалоге собеседника по наименованию таблицы, полученной из БД:
+                    ChatListRow chatListRow = new ChatListRow();
+                    for (var chatListRowItem : anoWindow.getUser().getDisputerIdsAndChatListRows().values()) {
+                        System.out.println("Проверка: " + chatListRowItem.getTableName() + "и" + tableName);
+                        if (chatListRowItem.getTableName().equals(tableName)) {
+                            chatListRow = chatListRowItem;
+                            System.out.println("***ЧатЛист № " + chatListRowItem.getId());
+                            break;
+                        }
+                    }
+                    Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRow);
+                    //1.2.1. Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
+                    // в словарь добавляются только сообщения, которые еще не скачаны
+                    anoWindow.getUser().getChats().get(idDisputer).downloadLastMessages(
+                            chatListRow,
+                            Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
                             anoWindow
+                    );
+                    //1.2.2. Добавить сообщения на экран
+                    // todo может быть стоит ограничить по количеству или вынести в асинхронный метод (если много)
+                    anoWindow.tabChatPanel.addAndShowMessagesFromList(
+                            new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
                     audioNotification();
                 }
             }
 
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1005);
             } catch (InterruptedException e) {
                 // обработка ошибок
             }
         }
     }
 
+    public void startListenerNewChatListRow(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+        System.out.println("DB метод прослушки о новых записях  о диалогах");
+        String notifyName = "ncl";
+        String queryForListenNotify = "LISTEN " + notifyName + "; ";
+
+        // Выполнение запроса прослушки
+        try {
+            stmtForListen.execute(queryForListenNotify.toString());
+        } catch (SQLException e) {
+            System.out.println("НЕ ВЫПОЛНЕНО: для прослушивания новых логинов `stmtForListen.execute(queryForListenNotify.toString());`");
+        }
+
+        //Приём уведомлений о всех новых диалогах при данном подключении
+        PGConnection pgConnForListen = (PGConnection)connForListen;
+        while (true) {
+            PGNotification[] newChatListRowNotifications = new PGNotification[0];
+            try {
+                newChatListRowNotifications = pgConnForListen.getNotifications();
+            } catch (SQLException e) {
+                System.out.println("НЕ ВЫПОЛНЕНО: `newChatListRowNotifications = pgConnForListen.getNotifications();`");
+                throw new RuntimeException(e);
+            }
+            if (newChatListRowNotifications != null) {
+                for (PGNotification newChatListRowNotification : newChatListRowNotifications) {
+                    String[] parts = newChatListRowNotification.getParameter().split("\\|");
+                    Integer id = Integer.parseInt(parts[0]);
+                    Integer userIdMin = Integer.parseInt(parts[1]);
+                    Integer userIdMax = Integer.parseInt(parts[2]);
+                    String tableName = parts[3];
+                    String comment = parts[4];
+                    if (anoWindow.getUser().getId() != userIdMin && anoWindow.getUser().getId() != userIdMax){
+                        continue;   //пропустить если нас не касается
+                    }
+                    System.out.println("***Уведомление о новой записи о диалоге с название табл. " + tableName);
+                    // todo добавить везде запись о диалоге собеседника, полученную из БД:
+                    //anoWindow.getUser().disputersUpdate(anoWindow);
+                    audioNotification();
+                }
+            }
+
+            try {
+                Thread.sleep(7003);
+            } catch (InterruptedException e) {
+                // обработка ошибок
+            }
+        }
+    }
+    
     /**
      * Воспроизведение звукового уведомления
      */
@@ -401,6 +466,7 @@ public class DB {
     public void createFunctionNotifyForNewMessage(ChatListRow chatListRow) {
         String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
         String notifyName =  chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
+        String tableName = chatListRow.getTableName(); //в конструкторе chatListRow присваивается nameFromDB.get(NAME.TABLE);
         String queryForCreateFunctionNotify =
             "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
             " RETURNS trigger\n" +
@@ -410,7 +476,7 @@ public class DB {
             "BEGIN\n" +
             "  PERFORM pg_notify(" +
                   "'" + notifyName + "', " +
-                  "NEW.zyid || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment" +
+                  "'" + tableName + "' || '|' || NEW.zyid || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment" +
                   ");\n" +
             "  RETURN NEW;\n" +
             "END;\n" +
@@ -488,6 +554,20 @@ public class DB {
                 queryForSelectIdsAndLoginsForIdsPart1 + queryForSelectIdsAndLoginsForIdsPart2;
 
         return executeQueryReport(queryForSelectIdsAndLoginsForIds);
+    }
+
+    /**
+     * Метод, получающий из БД id и логины пользователей, в логинах которых есть поисковое значение valueForSearch
+     * @param valueForSearch поисковое значение для поиска id и логинов
+     * @return id и логины пользователей
+     */
+    public ArrayList<ArrayList<Object>> selectIdsAndLoginsForLoginSearch(String valueForSearch) {
+        String queryForselectIdsAndLoginsForLoginSearch =
+                "select usid, uslogin\n" +
+                        "from " + readJSONFile(DB.settingsFilePath, "table_name_for_user") + " \n" +
+                        "where uslogin ILIKE '%" + valueForSearch + "%';";
+
+        return executeQueryReport(queryForselectIdsAndLoginsForLoginSearch);
     }
 }
 

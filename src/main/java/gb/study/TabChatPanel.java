@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 ;
 
@@ -14,15 +13,16 @@ public class TabChatPanel extends JPanel {
 
     // ЛЕВАЯ панель
     public JPanel leftPanel;    //todo переделать в private
+    private JPanel searchLoginPanel;
+    private JTextArea searchLoginTextArea;
+    private JButton searchLoginButton;
 
     // ПРАВАЯ панель
     private JPanel rightPanel;
     // верхняя панель ПРАВОЙ панели
     private JScrollPane messageHistoryScroll;
     private JPanel messageHistoryPanel;
-    private String messageAuthor;               //из настроек
-    private int countMessagesDownloadAtStart;   //из настроек
-    //todo нужна ли тут коллекция/словарь сообщений или элементов JTextArea? вроде и без нее норм
+    //  todo нужна ли тут коллекция/словарь сообщений или элементов JTextArea? вроде и без нее норм
     // нижняя панель ПРАВОЙ панели
     private JPanel bottomPanel;
     private JTextArea messageForSendTextArea;
@@ -46,6 +46,25 @@ public class TabChatPanel extends JPanel {
                         (int)((anoWindow.getHeight()-4)*0.30)
                 )
         );
+        // Панель поиска юзера для открытия чата с ним = поле ввода + кнопка
+        searchLoginPanel = new JPanel();
+        searchLoginPanel.setLayout(new BoxLayout(searchLoginPanel, BoxLayout.Y_AXIS));
+        searchLoginPanel.setSize(
+                new Dimension(
+                        (int)((anoWindow.getWidth()-8)*0.30),
+                        0
+                )
+        );
+        searchLoginTextArea = new JTextArea("введите логин собеседника");
+        searchLoginTextArea.setLineWrap(true);
+        searchLoginTextArea.setWrapStyleWord(true);
+        searchLoginTextArea.setSize(
+                new Dimension(
+                        (int)((anoWindow.getWidth()-10)*0.30),
+                        0
+                )
+        );
+        searchLoginButton = new JButton("Открыть чат");
 
         // 2. ПРАВАЯ ПАНЕЛЬ
         rightPanel = new JPanel();
@@ -100,31 +119,33 @@ public class TabChatPanel extends JPanel {
                         (int)((bottomPanel.getHeight()-2)*0.20)
                 )
         );
+
+        // Обработчики
+        // Добавление обработчика на кнопку поиска нового юзера
+        searchLoginButton.addActionListener(searchLoginActionListener);
         // Добавление обработчика на кнопку отправки
         messageSendButton.addActionListener(sendMessageActionListener);
 
-
-        // ДОБАВЛЕНИЕ ВСЕГО СОЗДАННОГО НА ОКНО
+        // РАЗМЕТКА
         // ЛЕВАЯ панель
         add(leftPanel);
-        //todo переделать testTextArea в поле для поиска собеседника
-        JTextArea testTextArea = new JTextArea("тестовое слово и не одно а много всяких разных слов, нужно больше");
-        testTextArea.setEditable(false);
-        testTextArea.setLineWrap(true);
-        testTextArea.setWrapStyleWord(true);
-        leftPanel.add(testTextArea);
+            leftPanel.add(searchLoginPanel);
+                searchLoginPanel.add(searchLoginTextArea);
+                searchLoginPanel.add(searchLoginButton);
+
         // ПРАВАЯ панель
         add(rightPanel);
-        // Добавление истории сообщений
-        rightPanel.add(messageHistoryScroll);
-        // Добавление нижней панели с инструментами для отправки письма
-        rightPanel.add(bottomPanel);
-        // Добавление поля для ввода в нижнюю панель
-        bottomPanel.add(messageForSendTextArea);
-        // Добавление кнопки для загрузки вложений в нижнюю панель
-        bottomPanel.add(messageAttachButton);
-        // Добавление кнопки для отправки письма в нижнюю панель
-        bottomPanel.add(messageSendButton);
+            // Добавление истории сообщений
+            rightPanel.add(messageHistoryScroll);
+            // Добавить на историю сообщений сами сообщения - метод, вызывающийся по клику на чат
+            // Добавление нижней панели с инструментами для отправки письма
+            rightPanel.add(bottomPanel);
+                // Добавление поля для ввода в нижнюю панель
+                bottomPanel.add(messageForSendTextArea);
+                // Добавление кнопки для загрузки вложений в нижнюю панель
+                bottomPanel.add(messageAttachButton);
+                // Добавление кнопки для отправки письма в нижнюю панель
+                bottomPanel.add(messageSendButton);
     }
 
     /**
@@ -160,9 +181,12 @@ public class TabChatPanel extends JPanel {
      */
     protected void addAndShowMessagesFromList(ArrayList<Message> messages) {
         if (messages.isEmpty()) return;
+        clearMessageHistoryPanel();
         for (var message : messages) {
             addAndShowNewMessage(message);
         }
+        messageHistoryPanel.revalidate();
+        messageHistoryPanel.repaint();
     }
 
     /**
@@ -175,8 +199,6 @@ public class TabChatPanel extends JPanel {
                 messageHistoryPanel.remove(component);
             }
         }
-        messageHistoryPanel.revalidate();
-        messageHistoryPanel.repaint();
     }
 
     /**
@@ -201,6 +223,50 @@ public class TabChatPanel extends JPanel {
             messageHistoryPanel.revalidate();
             messageHistoryPanel.repaint();
             messageForSendTextArea.requestFocus();
+        }
+    };
+
+    /**
+     * Обработчик поиска пользователя
+     */
+    ActionListener searchLoginActionListener = new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            //todo при регистрации пользователя, надо в базу записывать все логины с маленькими буквами!!!
+            ArrayList<ArrayList<Object>> idsAndLoginsForLoginSearch =
+                    anoWindow.getDb().selectIdsAndLoginsForLoginSearch(searchLoginTextArea.getText());
+            if (idsAndLoginsForLoginSearch.isEmpty()){
+                JOptionPane.showMessageDialog(
+                        null,
+                        "Пользователей, такому поисковому запросу не найдено. Уточните запрос."
+                );
+                return;
+            }
+            if (idsAndLoginsForLoginSearch.size() > 1){
+                StringBuilder reportSearch = new StringBuilder();
+                reportSearch
+                        .append("По такому поисковому запросу найдено много пользователей:")
+                        .append(System.lineSeparator());
+                for (var loginRowObj : idsAndLoginsForLoginSearch) {
+                    reportSearch.append(loginRowObj.get(1)).append(System.lineSeparator());
+                }
+                JOptionPane.showMessageDialog(null, reportSearch.append("Уточните запрос."));
+                return;
+            }
+            //Проверку в теории можно убрать, но что-то не хочется :-)
+            if (idsAndLoginsForLoginSearch.size() == 1){
+                //  todo подумать над тем, чтоб убрать эту логику в user или растворить в user.disputersUpdate()
+                // зарегистрировать с ним новую запись о диалоге
+                // => улетит уведомление
+                // => прилетит уведомление => обработается
+                //конструктор проверит, если такой записи нет в БД, то создаст ее (min/max тоже зашито в конструктор).
+                ChatListRow chatListRow = new ChatListRow(
+                        anoWindow.getUser().getId(),                            //user1
+                        (Integer) idsAndLoginsForLoginSearch.get(0).get(0),     //user2
+                        "",     //comment
+                        anoWindow
+                );
+            }
         }
     };
 

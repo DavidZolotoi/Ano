@@ -93,9 +93,18 @@ public class User {
         this.comment = comment;
         // получить из БД присвоенный id, добавив данные в БД, если их там нет
         this.id = parseIdFromBD(anoWindow);
+        disputersUpdate(anoWindow);
+        // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
+    }
+    /**
+     * Обновит словари собеседников: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     */
+    protected void disputersUpdate(AnoWindow anoWindow) {
         this.disputerIdsAndChatListRows = parseDisputerIdsAndChatListRows(anoWindow);
         this.disputerLoginsAndChatListRows = parseDisputerLoginsAndChatListRows(anoWindow);
-        // ВНИМАНИЕ! В этом словаре Integer - это id собеседника
+        // ВНИМАНИЕ! В словаре chats: Integer - это id собеседника
         this.chats = parseChats(anoWindow);
         // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
     }
@@ -124,15 +133,16 @@ public class User {
      * @return id, присвоенный в БД, для user
      */
     private ArrayList<ArrayList<Object>> getIdFromDB(AnoWindow anoWindow){
-        //todo в теории можно вытащить логику выше по уровню, и добавить еще методов: инсерт, пароль и т.п.
+        //todo нужно вытащить логику выше по уровню, и добавить еще методов: инсерт, пароль и т.п.
         ArrayList<ArrayList<Object>> reportWithIdLogPass = anoWindow.getDb().selectIdLoginPasswordForUser(this);
         //Если такого пользователя в БД нет, то добавить и настроить
         if(reportWithIdLogPass.isEmpty()) {
+            //todo добавить предупреждение, что пользователя нет мол добавить?
             anoWindow.getDb().insertNewUserAndConfigure(this);
             // теперь юзер 100% есть => снова запросить id в таблице User
             reportWithIdLogPass = anoWindow.getDb().selectIdLoginPasswordForUser(this);
         }
-        //todo СДЛАТЬ ПРОВЕРКУ ЛОГИНА и ПАРОЛЯ
+        //todo СДЕЛАТЬ ПРОВЕРКУ ЛОГИНА и ПАРОЛЯ
         checkLoginPassword();
 
         // предварительно очистив таблицу выгрузки от логина и пароля (на всякий);
@@ -150,11 +160,10 @@ public class User {
      * @return словарь id собеседников -> запись о диалогах
      */
     public LinkedHashMap<Integer, ChatListRow> parseDisputerIdsAndChatListRows(AnoWindow anoWindow) {
-        LinkedHashMap<Integer, ChatListRow> disputerIdsAndChatListRows = new LinkedHashMap<>();
+        var disputerIdsAndChatListRows = new LinkedHashMap<Integer, ChatListRow>();
         ArrayList<ArrayList<Object>> chatListWhereId = getChatListRowsFromDB(this, anoWindow);
         //приведение выгрузки из БД к нормальному типу
         for (var chatListCells : chatListWhereId) {
-            System.out.println("--- Создание chatListRow");
             //конструктор проверит, если такой записи нет в БД, то создаст ее.
             ChatListRow chatListRow = new ChatListRow(
                     (Integer)chatListCells.get(1),    //user1
@@ -164,6 +173,7 @@ public class User {
             );
             Integer disputerId = calculateDisputerId(chatListRow);
             disputerIdsAndChatListRows.put(disputerId, chatListRow);
+            System.out.println("Обнаружен чат с " + disputerId + " - " + chatListRow.getTableName());
         }
         return disputerIdsAndChatListRows;
     }
@@ -187,7 +197,7 @@ public class User {
      * @return словарь login собеседников -> запись о диалогах
      */
     private LinkedHashMap<String, ChatListRow> parseDisputerLoginsAndChatListRows(AnoWindow anoWindow) {
-        LinkedHashMap<String, ChatListRow> disputerLoginsAndChatListRows = new LinkedHashMap<>();
+        var disputerLoginsAndChatListRows = new LinkedHashMap<String, ChatListRow>();
         ArrayList disputerIds = new ArrayList<>(disputerIdsAndChatListRows.keySet());
         ArrayList<ArrayList<Object>> disputerIdsAndLogins = getIdsAndLoginsFromDB(disputerIds, anoWindow);
         for (ArrayList<Object> disputerIdAndLogin : disputerIdsAndLogins) {
@@ -221,7 +231,7 @@ public class User {
      * @return словарь id собеседника->Чат для пользователя
      */
     private LinkedHashMap<Integer, Chat> parseChats(AnoWindow anoWindow) {
-        LinkedHashMap<Integer, Chat> chats = new LinkedHashMap<>();
+        var chats = new LinkedHashMap<Integer, Chat>();
         for (var disputerIdAndChatListRow : disputerIdsAndChatListRows.entrySet()) {
             Integer disputerId = disputerIdAndChatListRow.getKey();
             Chat disputerChat = new Chat(disputerIdAndChatListRow.getValue().getTableName(), anoWindow);

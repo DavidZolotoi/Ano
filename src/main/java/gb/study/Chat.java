@@ -9,12 +9,10 @@ public class Chat {
     public LinkedHashMap<Integer, Message> getMessages() {
         return messages;
     }
-    private Integer idLastMessage;
 
     public Chat(String tableName, AnoWindow anoWindow) {
         this.tableName = tableName;
-        this.messages = new LinkedHashMap<>();
-        this.idLastMessage = 0;
+        this.messages = new LinkedHashMap<>();  //пока не грузим из БД - ждем клика
     }
 
     /**
@@ -28,8 +26,9 @@ public class Chat {
     protected void downloadLastMessages(ChatListRow chatListRow, Integer messageCount, AnoWindow anoWindow){
         for (var message : anoWindow.getDb().selectLastMessages(chatListRow, messageCount)) {
             Integer newMessageId = (Integer) message.get(0);
-            if (newMessageId <= this.idLastMessage)
-                continue;   // не перерисовывать сообщение, которое уже нарисовано
+            if (messages.containsKey(newMessageId)){
+                continue;   // сохранять только то, чего нет в словаре
+            }
             Message newMessage = new Message(
                     (Integer) message.get(0),
                     (Integer) message.get(1),
@@ -37,8 +36,7 @@ public class Chat {
                     (Timestamp) message.get(3),
                     (String) message.get(4)
             );
-            this.idLastMessage = newMessageId;
-            setNewMessage(newMessage, anoWindow);
+            messages.put(newMessage.getId(), newMessage);
         }
     }
 
@@ -51,6 +49,6 @@ public class Chat {
     protected void setNewMessage(Message message, AnoWindow anoWindow){
         messages.put(message.getId(), message);
         //Добавить JTextArea с загруженным сообщением
-        anoWindow.tabChatPanel.addAndShowNewMessage(message);
+        //anoWindow.tabChatPanel.addAndShowNewMessage(message);
     }
 }
