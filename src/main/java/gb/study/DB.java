@@ -191,6 +191,7 @@ public class DB {
      * @return отчет из базы данных
      */
     public ArrayList<ArrayList<Object>> executeQueryReport(String query){
+        System.out.println("--**-- Метод executeQueryReport");
         ArrayList<ArrayList<Object>> resultReport = new ArrayList<>();
         try (
                 Statement stmtForQuery = getStatement(
@@ -269,17 +270,12 @@ public class DB {
                         }
                     }
                     Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRow);
-                    //1.2.1. Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
+                    // Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
                     // в словарь добавляются только сообщения, которые еще не скачаны
                     anoWindow.getUser().getChats().get(idDisputer).downloadLastMessages(
                             chatListRow,
                             Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
                             anoWindow
-                    );
-                    //1.2.2. Добавить сообщения на экран
-                    // todo может быть стоит ограничить по количеству или вынести в асинхронный метод (если много)
-                    anoWindow.tabChatPanel.addAndShowMessagesFromList(
-                            new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
                     audioNotification();
                 }
@@ -317,18 +313,9 @@ public class DB {
             }
             if (newChatListRowNotifications != null) {
                 for (PGNotification newChatListRowNotification : newChatListRowNotifications) {
-                    String[] parts = newChatListRowNotification.getParameter().split("\\|");
-                    Integer id = Integer.parseInt(parts[0]);
-                    Integer userIdMin = Integer.parseInt(parts[1]);
-                    Integer userIdMax = Integer.parseInt(parts[2]);
-                    String tableName = parts[3];
-                    String comment = parts[4];
-                    if (anoWindow.getUser().getId() != userIdMin && anoWindow.getUser().getId() != userIdMax){
-                        continue;   //пропустить если нас не касается
-                    }
-                    System.out.println("***Уведомление о новой записи о диалоге с название табл. " + tableName);
-                    // todo добавить везде запись о диалоге собеседника, полученную из БД:
-                    //anoWindow.getUser().disputersUpdate(anoWindow);
+                    String[] notifyParts = newChatListRowNotification.getParameter().split("\\|");
+                    System.out.println("***Уведомление о новой записи о диалоге с название табл. " + notifyParts[3]);
+                    anoWindow.getUser().addNewDisputerFromDBNotify(notifyParts, anoWindow);
                     audioNotification();
                 }
             }
@@ -539,6 +526,7 @@ public class DB {
      * @return id и логины пользователей
      */
     public ArrayList<ArrayList<Object>> selectIdsAndLoginsForIds(ArrayList<Integer> userIds) {
+        System.out.println("--**-- Метод selectIdsAndLoginsForIds");
         String queryForSelectIdsAndLoginsForIdsPart1 =
                 "SELECT usid, uslogin FROM " + DB.settings.get("table_name_for_user") + " " +
                 "WHERE usid = " + userIds.get(0);

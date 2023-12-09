@@ -1,9 +1,8 @@
 package gb.study;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class User {
     private Integer id;        //заполняется при добавлении в БД, выгрузкой из неё присвоенного id
@@ -63,13 +62,22 @@ public class User {
     public void setActiveChatListRow(ChatListRow activeChatListRow) {
         this.activeChatListRow = activeChatListRow;
     }
+    /**
+     * Для нажатого компонента loginTextArea проверить была ли смена чатЛиста.
+     * В любом случае вне зависимости от результата сравнения, обновляет активный чатЛист юзера
+     * @param loginTextArea компонент, получивший клик
+     * @return результат сравнения
+     */
     public Boolean isChangeActiveChatListRow(JTextArea loginTextArea) {
         //todo надо переопределить метод equals у ChatListRow
-        Boolean result = true;  //предполагаем, что всё впервые, т.е. this.activeChatListRow == null
+        Boolean isChangeActiveChat = true;  //предполагаем, что всё впервые, т.е. this.activeChatListRow == null
         if (this.activeChatListRow != null)
-            result = disputerLoginsAndChatListRows.get(loginTextArea.getText()).getId() != activeChatListRow.getId();
+            isChangeActiveChat = disputerLoginsAndChatListRows.get(loginTextArea.getText()).getId() != activeChatListRow.getId();
+            // сравнение id от сhatListRow, полученного из login и id от activeChatListRow
+            // если они не равны, значит была смена чата
+            // при любом раскладе обновляем активный чатлист
         this.activeChatListRow = disputerLoginsAndChatListRows.get(loginTextArea.getText());
-        return result;
+        return isChangeActiveChat;
     }
 
 
@@ -84,6 +92,7 @@ public class User {
             String mail, String phone, String comment,
             AnoWindow anoWindow
     ) {
+        System.out.println("--**-- Конструктор User");
         this.login = login;
         this.password = password;
         this.firstName = firstName;
@@ -94,18 +103,6 @@ public class User {
         // получить из БД присвоенный id, добавив данные в БД, если их там нет
         this.id = parseIdFromBD(anoWindow);
         disputersUpdate(anoWindow);
-        // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
-    }
-    /**
-     * Обновит словари собеседников: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
-     * @param anoWindow главное окно со всеми его свойствами,
-     *                  в том числе с БД, которая необходима для работы метода
-     */
-    protected void disputersUpdate(AnoWindow anoWindow) {
-        this.disputerIdsAndChatListRows = parseDisputerIdsAndChatListRows(anoWindow);
-        this.disputerLoginsAndChatListRows = parseDisputerLoginsAndChatListRows(anoWindow);
-        // ВНИМАНИЕ! В словаре chats: Integer - это id собеседника
-        this.chats = parseChats(anoWindow);
         // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
     }
 
@@ -153,6 +150,21 @@ public class User {
     private boolean checkLoginPassword() {return true;}
 
     /**
+     * Обновит словари собеседников: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     */
+    protected void disputersUpdate(AnoWindow anoWindow) {
+        System.out.println("--**-- Метод disputersUpdate");
+        //todo НАДО ВСЁ ПРОВЕРИТЬ НА ПУСТЫЕ ВОЗВРАТЫ
+        this.disputerIdsAndChatListRows = parseDisputerIdsAndChatListRows(anoWindow);
+        this.disputerLoginsAndChatListRows = parseDisputerLoginsAndChatListRows(anoWindow);
+        // ВНИМАНИЕ! В словаре chats: Integer - это id собеседника
+        this.chats = parseChats(anoWindow);
+        // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
+    }
+
+    /**
      * Получает словарь id собеседников -> запись о диалогах, в которых состоит пользователь user,
      * обработав результаты запроса к таблице записей о диалогах из БД и приведя их к нужному типу
      * @param anoWindow главное окно со всеми его свойствами,
@@ -197,10 +209,12 @@ public class User {
      * @return словарь login собеседников -> запись о диалогах
      */
     private LinkedHashMap<String, ChatListRow> parseDisputerLoginsAndChatListRows(AnoWindow anoWindow) {
+        System.out.println("--**-- Метод parseDisputerLoginsAndChatListRows");
         var disputerLoginsAndChatListRows = new LinkedHashMap<String, ChatListRow>();
-        ArrayList disputerIds = new ArrayList<>(disputerIdsAndChatListRows.keySet());
+        var disputerIds = new ArrayList<Integer>(disputerIdsAndChatListRows.keySet());
         ArrayList<ArrayList<Object>> disputerIdsAndLogins = getIdsAndLoginsFromDB(disputerIds, anoWindow);
-        for (ArrayList<Object> disputerIdAndLogin : disputerIdsAndLogins) {
+        System.out.println("--**-- Вернулись в Метод parseDisputerLoginsAndChatListRows");
+        for (var disputerIdAndLogin : disputerIdsAndLogins) {
             String disputerLogin = (String) disputerIdAndLogin.get(1);
             Integer disputerId = (Integer) disputerIdAndLogin.get(0);
             ChatListRow disputerChatListRow = disputerIdsAndChatListRows.get(disputerId);
@@ -208,7 +222,9 @@ public class User {
                     disputerLogin,
                     disputerChatListRow
             );
+            System.out.println("--**-- disputerLogin = " + disputerLogin + " disputerId = " + disputerId);
         }
+        System.out.println("--**-- Вышли из Метод parseDisputerLoginsAndChatListRows");
         return disputerLoginsAndChatListRows;
     }
     /**
@@ -219,7 +235,8 @@ public class User {
      *                  в том числе с БД, которая необходима для работы метода
      * @return
      */
-    private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList disputerIds, AnoWindow anoWindow) {
+    private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList<Integer> disputerIds, AnoWindow anoWindow) {
+        System.out.println("--**-- Метод getIdsAndLoginsFromDB");
         return anoWindow.getDb().selectIdsAndLoginsForIds(disputerIds);
     }
 
@@ -240,6 +257,45 @@ public class User {
         return chats;
     }
 
+    protected void addNewDisputerFromDBNotify(String[] chatListRowParts, AnoWindow anoWindow){
+        // 0. Распознать chatListRow и проигнорировать, если не наш, ведь при создании chatListRow есть запрос в БД (id по tableName)
+        Integer id = Integer.parseInt(chatListRowParts[0]);
+        Integer userIdMin = Integer.parseInt(chatListRowParts[1]);
+        Integer userIdMax = Integer.parseInt(chatListRowParts[2]);
+        String tableName = chatListRowParts[3]; //серое, потому что не нужно, потому что имя получается по формуле
+        String comment = chatListRowParts[4];
+        if (anoWindow.getUser().getId() != userIdMin && anoWindow.getUser().getId() != userIdMax){
+            return;
+        }
+        ChatListRow chatListRow = new ChatListRow(userIdMin, userIdMax, comment, anoWindow);
+        // 1. Определить id собеседника и добавить в первый словарь - без запроса в БД
+        Integer disputerId = calculateDisputerId(chatListRow);
+        disputerIdsAndChatListRows.put(disputerId, chatListRow);
+        // 2. Определить login собеседника и добавить во второй словарь - с запросом
+        ArrayList<Integer> disputerIds = new ArrayList<>();
+        disputerIds.add(disputerId);// коллекция для запроса в БД только из одного id, будет 1 строка ответа: id+login
+        ArrayList<ArrayList<Object>> disputerIdsAndLogins = getIdsAndLoginsFromDB(disputerIds, anoWindow);
+        String disputerLogin = (String) disputerIdsAndLogins.get(0).get(1);
+        disputerLoginsAndChatListRows.put(disputerLogin, chatListRow);
+        // 3. Добавить чат
+        Chat disputerChat = new Chat(chatListRow.getTableName(), anoWindow);
+        chats.put(disputerId, disputerChat);
+        // 4. Добавить компонент на экран и повесить на него обработчик
+        for (var disputerLoginAndChatListRow : disputerLoginsAndChatListRows.entrySet()){
+            if(disputerLoginAndChatListRow.getKey().equals(disputerLogin)){
+                anoWindow.tabChatPanel.addNewDisputerAndListener(disputerLoginAndChatListRow);
+                // Запустить асинхронное прослушивание коллекции каналов из одного канала:
+                var chatListRows = new ArrayList<ChatListRow>();
+                chatListRows.add(chatListRow);
+                CompletableFuture<Void> futureNewListenerNewMessage = listenerNewMessageAsync(
+                        chatListRows,
+                        anoWindow
+                );
+                break;
+            }
+        }
+    }
+
     /**
      * Рассчитывает id собеседника для пользователя, имея запись о диалоге
      * @param chatListRow запись о диалоге
@@ -247,5 +303,49 @@ public class User {
      */
     public Integer calculateDisputerId(ChatListRow chatListRow){
         return chatListRow.getUserIdMin() + chatListRow.getUserIdMax() - id;
+    }
+
+    /**
+     * Запустить все прослушивания (как новых чатов, так и сообщений)
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     */
+    public void startListening(AnoWindow anoWindow) {
+        // 1. Запустить асинхронное прослушивание этих каналов:
+        CompletableFuture<Void> futureListenerNewMessage = listenerNewMessageAsync(
+                new ArrayList<>(disputerLoginsAndChatListRows.values()),
+                anoWindow
+        );
+        // 2. Запуск асинхронное прослушивание нового чата с неизвестным
+        CompletableFuture<Void> futureListenerNewDisputer = listenerNewDisputerAsync(
+                new ArrayList<>(disputerLoginsAndChatListRows.values()),
+                anoWindow
+        );
+    }
+    /**
+     * Асинхронный метод прослушивания уведомлений о новых сообщениях
+     * @param chatListRows записи о диалогах, которые необходимо прослушивать
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     * @return
+     */
+    private CompletableFuture<Void> listenerNewMessageAsync(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+        return CompletableFuture.runAsync(() -> {
+            System.out.println("Прослушивание уведомлений о новых сообщениях запущено.");
+            anoWindow.getDb().startListenerNewMessage(chatListRows, anoWindow);
+        });
+    }
+    /**
+     * Асинхронный метод прослушивания уведомлений о добавлении новой записи о диалоге (чате)
+     * @param chatListRows записи о диалогах, которые необходимо прослушивать
+     * @param anoWindow главное окно со всеми его свойствами,
+     *                  в том числе с БД, которая необходима для работы метода
+     * @return
+     */
+    private CompletableFuture<Void> listenerNewDisputerAsync(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+        return CompletableFuture.runAsync(() -> {
+            System.out.println("Прослушивание уведомлений о добавлении новой записи о диалоге запущено.");
+            anoWindow.getDb().startListenerNewChatListRow(chatListRows, anoWindow);
+        });
     }
 }

@@ -1,12 +1,10 @@
 package gb.study;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.Map;
 
 public class Program {
     public static void main(String[] args) {
         new AnoWindow();
+        //new AnoWindow();
     }
 }
 

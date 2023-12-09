@@ -4,18 +4,27 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Map;
 ;
 
 public class TabChatPanel extends JPanel {
     // ОБЩЕЕ окно
     private AnoWindow anoWindow;   //БД в его свойстве
-
+    private User user;
+    
     // ЛЕВАЯ панель
     public JPanel leftPanel;    //todo переделать в private
     private JPanel searchLoginPanel;
     private JTextArea searchLoginTextArea;
     private JButton searchLoginButton;
+    private JPanel loginsPanel;
+    private JScrollPane loginsScroll;
+    public JPanel getLoginsPanel() {
+        return loginsPanel;
+    }
 
     // ПРАВАЯ панель
     private JPanel rightPanel;
@@ -33,6 +42,7 @@ public class TabChatPanel extends JPanel {
     public TabChatPanel(JFrame window) {
         super();
         this.anoWindow = (AnoWindow)window;
+        user = anoWindow.getUser(); //todo видимо надо отсюда удалить, потому юзер распознается позже
 
         // 0. САМО ОКНО
         setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
@@ -65,6 +75,15 @@ public class TabChatPanel extends JPanel {
                 )
         );
         searchLoginButton = new JButton("Открыть чат");
+        // Панель со всеми логинами
+        loginsPanel = new JPanel();
+        loginsPanel.setLayout(new BoxLayout(loginsPanel, BoxLayout.Y_AXIS));
+        // добавить скролл
+        loginsScroll = new JScrollPane();
+        loginsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        loginsScroll.setViewportView(loginsPanel);
+
+
 
         // 2. ПРАВАЯ ПАНЕЛЬ
         rightPanel = new JPanel();
@@ -132,6 +151,7 @@ public class TabChatPanel extends JPanel {
             leftPanel.add(searchLoginPanel);
                 searchLoginPanel.add(searchLoginTextArea);
                 searchLoginPanel.add(searchLoginButton);
+            leftPanel.add(loginsPanel);
 
         // ПРАВАЯ панель
         add(rightPanel);
@@ -146,6 +166,67 @@ public class TabChatPanel extends JPanel {
                 bottomPanel.add(messageAttachButton);
                 // Добавление кнопки для отправки письма в нижнюю панель
                 bottomPanel.add(messageSendButton);
+    }
+
+    /**
+     * Обновляет панель со всеми логинами в соответствии с хранилищами пользователя
+     * (Добавляет чат и вешает на него обработчик)
+     */
+    protected void updateDisputerLoginsPanel(){
+        user = anoWindow.getUser();
+        // 0. Прогон по списку диалогов с этим юзером (disputer), с повешанными обработчиками
+        for (var disputerLoginAndChatListRow : user.getDisputerLoginsAndChatListRows().entrySet()) {
+            addNewDisputerAndListener(disputerLoginAndChatListRow);
+        }
+    }
+    /**
+     * Добавляет чат с новым логином и вешает на него обработчик
+     * @param disputerLoginAndChatListRow информация о новом чате
+     */
+    protected void addNewDisputerAndListener(Map.Entry<String, ChatListRow> disputerLoginAndChatListRow) {
+        // 1. добавить JTextArea с его disputerLogin и повесить на него обработчик
+        String disputerLogin = disputerLoginAndChatListRow.getKey();
+        JTextArea loginTextArea = addDisputerLoginTextArea(disputerLogin);
+        // 2. повесить на него обработчик
+        loginAddMouseListener(loginTextArea);
+    }
+
+    /**
+     * Добавляет на панель логинов компонент с логином,
+     * @param disputerLogin логин пользователя, который необходимо добавить
+     * @return ссылку на добавленный компонент
+     */
+    protected JTextArea addDisputerLoginTextArea(String disputerLogin) {
+        JTextArea loginTextArea = new JTextArea(disputerLogin);
+        loginTextArea.setEditable(false);
+        loginTextArea.setLineWrap(true);
+        loginTextArea.setWrapStyleWord(true);
+        anoWindow.tabChatPanel.getLoginsPanel().add(loginTextArea);
+        return loginTextArea;
+    }
+
+    /**
+     * Вешает обработчик на клик по компоненту с пользователем (чату)
+     * @param loginTextArea ссылка на компонент с логином пользователя (чат)
+     */
+    private void loginAddMouseListener(JTextArea loginTextArea) {
+        loginTextArea.addMouseListener(new MouseAdapter() {
+            public void mouseReleased(MouseEvent e) {
+                JTextArea sourceLoginTextArea = (JTextArea) e.getSource();
+                // Проверка - если активный чат после клика не поменялся, то выходим
+                if (!user.isChangeActiveChatListRow(sourceLoginTextArea)) return;
+                // Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
+                // в словарь добавляются только сообщения, которые еще не скачаны
+                String disputerLogin = loginTextArea.getText();
+                ChatListRow disputerChatListRow = user.getDisputerLoginsAndChatListRows().get(disputerLogin);
+                Integer disputerId = user.calculateDisputerId(disputerChatListRow);
+                user.getChats().get(disputerId).downloadLastMessages(
+                        disputerChatListRow,
+                        Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
+                        anoWindow
+                );
+            }
+        });
     }
 
     /**
@@ -185,8 +266,18 @@ public class TabChatPanel extends JPanel {
         for (var message : messages) {
             addAndShowNewMessage(message);
         }
+        //loginsPanelNotice(String loginValue);
         messageHistoryPanel.revalidate();
         messageHistoryPanel.repaint();
+    }
+    //todo если делать пометку звездочкой, то и снимать ее надо при прочтении
+    protected void loginsPanelNotice(String loginValue){
+        for (var loginTextArea : loginsPanel.getComponents()) {
+            if(((JTextArea) loginTextArea).getText().replace("*", "").equals(loginValue)){
+                ((JTextArea) loginTextArea).setText(loginValue + "*");
+            }
+        }
+
     }
 
     /**

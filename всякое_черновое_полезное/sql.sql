@@ -43,10 +43,12 @@ where usid = 1 or usid = 4 or usid = 7;
 select usid,uslogin,uspassword 
 from public.user
 where uslogin = 'Sergey';
-
+-- поискать с фильтром
+select usid, uslogin 
+from public.user
+where uslogin ILIKE '%a%';
 -- показать всё содержимое
 select * from public.user;
-
 
 /*-- 2. Список диалогов ---*/
 -- удаление таблицы
@@ -82,6 +84,30 @@ values
 (3,6,'zz3yy6',null),
 (5,7,'zz5yy7',null),
 (4,5,'zz4yy5',null);
+
+
+-- Эта функция создаст уведомление для пользователей - это для слушателя java: String listenQuery = "LISTEN ...";
+-- и передаст в него значения всех колонок новой строки в таблице
+CREATE OR REPLACE FUNCTION fchatlist() RETURNS trigger AS $$
+DECLARE
+BEGIN
+  PERFORM pg_notify('ncl', NEW.clid || '|' || NEW.cluseridmin || '|' || NEW.cluseridmax || '|' || NEW.cltablename || '|' || NEW.clcomment);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Этот триггер вызовет функцию "fchatlist"
+-- после каждой вставки новой строки в таблицу "public.chatlist"
+--УДАЛЕНИЕ ТРИГГЕРА
+-- DROP TRIGGER tchatlist ON public.chatlist;
+--СОЗДАНИЕ ТРИГГЕРА
+CREATE TRIGGER tchatlist
+    AFTER INSERT
+    ON public.chatlist
+    FOR EACH ROW
+    EXECUTE PROCEDURE public.fchatlist();
+
+-- Удаление: триггер - функция - таблица
 
 -- показать все чаты, где Sergey (id=5)
 select *
@@ -173,9 +199,9 @@ SELECT
 	*
 FROM
 	(SELECT	* from zz1yy5
-	ORDER BY mes_datetime DESC LIMIT 20)
+	ORDER BY zydatetime DESC LIMIT 20)
 AS last_message_not_ordered
-ORDER BY mes_datetime ASC;
+ORDER BY zydatetime ASC;
    
    
 
