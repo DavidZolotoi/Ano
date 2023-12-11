@@ -30,7 +30,7 @@ public class DB {
     protected Statement stmtForListen;
 
     public DB() {
-        //создать словарь, если его до сих пор нет,
+        //создать словарь из json, если его до сих пор нет,
         // добавить ключи, если их там до сих пор нет, прочитав из файла
         DB.settings = checkSettings(DB.settings, DB.settingsFilePath,
                 "url", "user", "password", "table_name_for_user", "table_name_for_chat_list");
