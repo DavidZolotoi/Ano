@@ -13,6 +13,7 @@ import java.util.Map;
 public class TabChatPanel extends JPanel {
     // ОБЩЕЕ окно
     private AnoWindow anoWindow;   //БД в его свойстве
+    private final Log log;
     private User user;
     
     // ЛЕВАЯ панель
@@ -42,6 +43,7 @@ public class TabChatPanel extends JPanel {
     public TabChatPanel(JFrame window) {
         super();
         this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
         user = anoWindow.getUser(); //todo видимо надо отсюда удалить, потому юзер распознается позже
 
         // 0. САМО ОКНО

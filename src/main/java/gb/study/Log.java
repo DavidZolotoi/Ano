@@ -95,6 +95,7 @@ public class Log {
         message = System.lineSeparator() + message;
         logger.severe(message);
         alternativeWrite(message);
+        //todo код для завершения программы
     }
 
     /**
@@ -102,6 +103,6 @@ public class Log {
      * @param message текст лога
      */
     private void alternativeWrite(String message) {
-        System.out.println(message);
+
     }
 }

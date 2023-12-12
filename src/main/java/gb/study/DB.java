@@ -8,6 +8,7 @@ import org.postgresql.PGNotification;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.swing.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -23,42 +24,50 @@ public class DB {
     protected static String settingsFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json";
     protected static Map<String, String> settings;
 
+    private final AnoWindow anoWindow;
+    private final Log log;
+
     protected Connection connForSend;
     protected Statement stmtForSend;
 
     protected Connection connForListen;
     protected Statement stmtForListen;
 
-    public DB() {
-        //создать словарь из json, если его до сих пор нет,
-        // добавить ключи, если их там до сих пор нет, прочитав из файла
-        DB.settings = checkSettings(DB.settings, DB.settingsFilePath,
+    public DB(JFrame window) {
+        this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
+        log.info("DB(JFrame window) Начало - создание БД");
+        DB.settings = updateSettings(DB.settings, DB.settingsFilePath,
                 "url", "user", "password", "table_name_for_user", "table_name_for_chat_list");
 
         //todo возможно стоит убрать из конструктора - надо подумать
-        connForSend = getConnection(settings.get("url"), settings.get("user"), settings.get("password"));
-        stmtForSend = getStatement(connForSend);
+        connForSend = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
+        stmtForSend = createStatement(connForSend);
 
-        connForListen = getConnection(settings.get("url"), settings.get("user"), settings.get("password"));
-        stmtForListen = getStatement(connForListen);
+        connForListen = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
+        stmtForListen = createStatement(connForListen);
+
+        log.info("DB(JFrame window) Конец - БД создана");
     }
 
     /**
-     * Проверить существование словаря настроек и ключей в нём.
+     * Проверить существование статического словаря настроек и ключей в нём.
      * Если словаря нет, то создать.
      * Если ключей в словаре нет, то добавить, прочитав их значения из файла.
-     * @param mapForCheck словарь, который необходимо проверить и вернуть.
+     * @param mapForUpdate словарь, который необходимо проверить и вернуть.
      * @param filePath путь к файлу, в котором хранятся ключи и значения для словаря
      * @param jsonKeys ключи, которые необходимо проверить или добавить
      * @return Проверенный и дополненный в случае необходимости словарь.
      */
-    private Map<String, String> checkSettings(Map<String, String> mapForCheck, String filePath, String... jsonKeys) {
-        if (mapForCheck == null) mapForCheck = new HashMap<>();
+    private Map<String, String> updateSettings(Map<String, String> mapForUpdate, String filePath, String... jsonKeys) {
+        log.info("updateSettings(..) Начало - обновление словаря настроек");
+        if (mapForUpdate == null) mapForUpdate = new HashMap<>();
         for (var jsonKey:jsonKeys) {
-            if (!mapForCheck.containsKey(jsonKey))
-                mapForCheck.put(jsonKey, readJSONFile(filePath, jsonKey));
+            if (!mapForUpdate.containsKey(jsonKey))
+                mapForUpdate.put(jsonKey, readJSONFile(filePath, jsonKey));
         }
-        return mapForCheck;
+        log.info("updateSettings(..) Конец - обновление словаря настроек");
+        return mapForUpdate;
     }
     /**
      * Метод, получающий значение по ключу из JSON-файла
@@ -67,6 +76,7 @@ public class DB {
      * @return искомое значение
      */
     public String readJSONFile(String filePath, String jsonKey) {
+        log.info("readJSONFile(..) Начало - получение значения по ключу JSON из файла");
         String jsonValue = null;
         try (FileReader reader = new FileReader(filePath))
         {
@@ -74,15 +84,16 @@ public class DB {
             JSONObject jsonObject = new JSONObject(tokener);
             jsonValue = jsonObject.getString(jsonKey);
         } catch (FileNotFoundException e) {
-            System.out.println("Файл не найден: " + filePath);
+            log.problem("Файл не найден: " + filePath);
             e.printStackTrace();
         } catch (JSONException e) {
-            System.out.println("Ошибка при чтении JSON. Ключ: " + jsonKey);
+            log.problem("Ошибка при распознавании JSON. Ключ: " + jsonKey);
             e.printStackTrace();
         } catch (IOException e) {
-            System.out.println("Проблема с вводом-выводом при чтении файла: " + filePath);
+            log.problem("Проблема с вводом-выводом при чтении файла: " + filePath);
             e.printStackTrace();
         }
+        log.info("readJSONFile(..) Конец - получение значения по ключу JSON из файла");
         return jsonValue;
     }
 
@@ -91,13 +102,15 @@ public class DB {
      * @param connection соединение
      * @return созданный Statement
      */
-    private Statement getStatement(Connection connection) {
+    private Statement createStatement(Connection connection) {
+        log.info("createStatement(Connection connection) Начало создания stmt");
         Statement stmt = null;
         try {
             stmt = connection.createStatement();
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с Statement");
+            log.problem("Проблема с созданием Statement");
         }
+        log.info("createStatement(Connection connection) Конец создания stmt");
         return stmt;
     }
 
@@ -108,18 +121,20 @@ public class DB {
      * @param password пароль БД
      * @return соединение
      */
-    protected Connection getConnection(String url, String user, String password){
+    protected Connection createConnection(String url, String user, String password){
+        log.info("createConnection(String url, String user, String password) Начало");
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с Class.forName(..)");
+            log.problem("Проблема - исключение при вызове Class.forName(\"org.postgresql.Driver\");");
         }
         Connection conn = null;
         try {
             conn = DriverManager.getConnection(url, user, password);
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с conn = DriverManager.getConnection(url, user, password)");
+            log.problem("Проблема - исключение при вызове conn = DriverManager.getConnection(url, user, password)");
         }
+        log.info("createConnection(String url, String user, String password) Конец");
         return conn;
     }
 
@@ -175,8 +190,8 @@ public class DB {
      * @param query запрос, который необходимо выполнить
      */
     public void executeQueryVoid(String query) {
-        Statement stmtForQuery = getStatement(
-                getConnection(settings.get("url"), settings.get("user"), settings.get("password"))
+        Statement stmtForQuery = createStatement(
+                createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"))
         );
         try {
             stmtForQuery.execute(query);
@@ -194,8 +209,8 @@ public class DB {
         System.out.println("--**-- Метод executeQueryReport");
         ArrayList<ArrayList<Object>> resultReport = new ArrayList<>();
         try (
-                Statement stmtForQuery = getStatement(
-                        getConnection(settings.get("url"), settings.get("user"), settings.get("password"))
+                Statement stmtForQuery = createStatement(
+                        createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"))
                 );
                 ResultSet newRow = stmtForQuery.executeQuery(query)
         ) {
@@ -218,11 +233,10 @@ public class DB {
     }
 
     /**
-     * Прослушивание диалога
-     * @param anoWindow ссылка на окно,
-     *                  в котором есть метод, вставляющий новые сообщения в свое место на окне
+     * Прослушивание уведомлений о новых сообщениях в диалогах
+     * @param chatListRows коллекция всех записей о диалогах
      */
-    public void startListenerNewMessage(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+    public void startListenerNewMessage(ArrayList<ChatListRow> chatListRows) {
         System.out.println("--- DB метод прослушки новых сообщений");
         // Суммарный запрос для прослушки, состоящий из нескольких Listen notify...;...
         StringBuilder queriesForListenNotify = new StringBuilder();
@@ -289,7 +303,10 @@ public class DB {
         }
     }
 
-    public void startListenerNewChatListRow(ArrayList<ChatListRow> chatListRows, AnoWindow anoWindow) {
+    /**
+     * Прослушивание уведомлений о новых записях о диалогах
+     */
+    public void startListenerNewChatListRow() {
         System.out.println("DB метод прослушки о новых записях  о диалогах");
         String notifyName = "ncl";
         String queryForListenNotify = "LISTEN " + notifyName + "; ";
@@ -315,7 +332,7 @@ public class DB {
                 for (PGNotification newChatListRowNotification : newChatListRowNotifications) {
                     String[] notifyParts = newChatListRowNotification.getParameter().split("\\|");
                     System.out.println("***Уведомление о новой записи о диалоге с название табл. " + notifyParts[3]);
-                    anoWindow.getUser().addNewDisputerFromDBNotify(notifyParts, anoWindow);
+                    anoWindow.getUser().addNewDisputerFromDBNotify(notifyParts);
                     audioNotification();
                 }
             }
@@ -345,12 +362,12 @@ public class DB {
 
     /**
      * Метод, получающий id, login, password из таблицы user в БД.
-     * @param user пользователь
+     * @param login пользователя
      */
-    public ArrayList<ArrayList<Object>> selectIdLoginPasswordForUser(User user) {
+    public ArrayList<ArrayList<Object>> selectIdLoginPasswordForUser(String login) {
         String queryForGetIdLoginPassword =
                 "SELECT usid, uslogin, uspassword FROM " + DB.settings.get("table_name_for_user") + " " +
-                        "WHERE uslogin = '" + user.getLogin() + "'";
+                        "WHERE uslogin = '" + login + "'";
         return executeQueryReport(queryForGetIdLoginPassword);
     }
 

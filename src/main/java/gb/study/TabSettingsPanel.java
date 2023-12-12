@@ -8,6 +8,7 @@ import java.awt.event.ActionListener;
 public class TabSettingsPanel extends JPanel {
     // ОБЩЕЕ окно
     private final AnoWindow anoWindow;   //БД в его свойстве
+    private final Log log;
     // ЛЕВАЯ панель
     private final JPanel leftPanel;
     private final JTextArea loginCommentTextArea;
@@ -26,11 +27,12 @@ public class TabSettingsPanel extends JPanel {
     public TabSettingsPanel(JFrame window) {
         super(new GridLayout(1, 2));
         this.anoWindow = (AnoWindow)window;
-        anoWindow.log.info("TabSettingsPanel(JFrame window) Начало");
+        this.log = this.anoWindow.log;
+        log.info("TabSettingsPanel(JFrame window) Начало");
         leftPanel = new JPanel();
         rightPanel = new JPanel();
 
-        anoWindow.log.info("Создание компонентов для leftPanel");
+        log.info("Создание компонентов для leftPanel");
         loginCommentTextArea = new JTextArea("Логин:* ");
         loginCommentTextArea.setEditable(false);
         loginCommentTextArea.setLineWrap(true);
@@ -54,7 +56,7 @@ public class TabSettingsPanel extends JPanel {
         loginStatusTextArea.setWrapStyleWord(true);
         loginStatusTextArea.setBackground(new Color(0, 0, 0, 0));
 
-        anoWindow.log.info("Создание компонентов для rightPanel");
+        log.info("Создание компонентов для rightPanel");
         countMesForDownTextArea = new JTextArea("Количество загружаемых сообщений, при открытии диалога:");
         countMesForDownTextArea.setEditable(false);
         countMesForDownTextArea.setLineWrap(true);
@@ -65,7 +67,7 @@ public class TabSettingsPanel extends JPanel {
         countMesForDownValueTextArea.setWrapStyleWord(true);
 
         // РАЗМЕТКА
-        anoWindow.log.info("РАЗМЕТКА панели настроек - добавление всего созданного");
+        log.info("РАЗМЕТКА панели настроек - добавление всего созданного");
         int rowCountLeftPanel = 10;
         int colCountLeftPanel = 2;
         leftPanel.setLayout(new GridLayout(rowCountLeftPanel, colCountLeftPanel));
@@ -103,37 +105,38 @@ public class TabSettingsPanel extends JPanel {
 
         // Обработчики
         logingButton.addActionListener(logingActionListener);
+        //todo Надо создать кнопку "регистрация"
+        // anoWindow.getDb().insertNewUserAndConfigure(anoWindow); - добавляет нового пользователя в БД
 
-        anoWindow.log.info("TabSettingsPanel(JFrame window) Конец");
+        log.info("TabSettingsPanel(JFrame window) Конец");
     }
 
     // Обработчик кнопки входа в систему
     final ActionListener logingActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            anoWindow.log.info("Обработчик кнопки logingButton Начало");
+            log.info("Обработчик кнопки logingButton Начало");
             // Взаимодействие с БД - начало
             // 0. Идентификация юзера (логин) и подтверждение (пароль), а также получение его id из БД
             // При создании пользователя у него создадутся два словаря:
             // - словарь id->запись о диалоге (1 запрос к записям о диалогах)
             // - словарь логин->запись о диалоге (1 запрос к юзерам) - используем его
-            //todo прочитать из вкладки настроек?
-            User user = new User(    //todo прочитать из вкладки настроек?
-                    loginValueTextArea.getText(),
-                    new String(passValuePasswordField.getPassword()),
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    anoWindow
-            );
+            User user = null;
+            try {
+                user = User.checkLoginPasswordAndParseUserFromDB(
+                        loginValueTextArea.getText(),
+                        passValuePasswordField.getPassword().toString(),
+                        anoWindow
+                );
+            } catch (IllegalArgumentException argExp) {
+                log.problem(argExp.getMessage());
+            }
             anoWindow.setUser(user);
             // 1. Добавить все disputerTextArea и повесить на них обработчики
             anoWindow.tabChatPanel.updateDisputerLoginsPanel();
             // 2. Запустить все прослушивания
-            user.startListening(anoWindow);
-            anoWindow.log.info("Обработчик кнопки logingButton Конец");
+            user.startListening();
+            log.info("Обработчик кнопки logingButton Конец");
         }
     };
 }

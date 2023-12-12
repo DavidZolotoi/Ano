@@ -30,7 +30,7 @@ public class AnoWindow extends JFrame {
         log.info("AnoWindow(Log log) Начало");
         this.log = log;
 
-        this.db = new DB();
+        this.db = new DB(this);
 
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         Dimension screenSize = toolkit.getScreenSize();
