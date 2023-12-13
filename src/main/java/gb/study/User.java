@@ -18,7 +18,7 @@ public class User {
         return login;
     }
 
-    private final String password;
+    private String password;
     public String getPassword() {
         return password;
     }
@@ -73,43 +73,60 @@ public class User {
 
     /**
      * Статический метод проверки данных для входа.
+     * Если данные для входа корректны, то создаст пользователя и
+     * загрузит для пользователя из БД информацию о собеседниках для словарей пользователя,
+     * но не информацию о сообщениях (загрузка сообщений по клику).
      * @param login пользователя
-     * @param pass пользователя
+     * @param passValuePasswordField пользователя
      * @param anoWindow главное окно, содержит логгер и прочее
      * @return пользователя, если данные корректны
      * @throws IllegalArgumentException исключение, если данные для входа не корректны
      */
-    protected static User checkLoginPasswordAndParseUserFromDB(String login, String pass, AnoWindow anoWindow) throws IllegalArgumentException {
-        // По логину выгрузить id, логин и пароль
+    protected static User checkLoginPasswordAndParseUserFromDB(
+            String login, JPasswordField passValuePasswordField, AnoWindow anoWindow
+    ) throws IllegalArgumentException {
+        anoWindow.log.info("checkLoginPasswordAndParseUserFromDB(..) Начало");
         ArrayList<ArrayList<Object>> userFromDB = anoWindow.getDb().selectIdLoginPasswordForUser(login);
-        // Если есть выгрузка, то распознать ее
         Integer idFromDB = 0;
         String loginFromDB = null;
         String passFromDB = null;
-        if (!userFromDB.isEmpty() && userFromDB != null){
+        if (userFromDB!=null && !userFromDB.isEmpty()){
             idFromDB = ((Number) userFromDB.get(0).get(0)).intValue();
             loginFromDB = userFromDB.get(0).get(1).toString();
             passFromDB = userFromDB.get(0).get(2).toString();
+            anoWindow.log.info("Выгрузка данных из БД не пустая");
         }
-        // Если логин и пароль не совпадают,
-        if ( !(login.equals(loginFromDB) && pass.equals(passFromDB)) ){
+        if (
+            !login.equals(loginFromDB) ||
+            !Arrays.equals(passValuePasswordField.getPassword(), passFromDB.toCharArray())
+        ){
+            passValuePasswordField = null;
+            passFromDB = null;
+            loginFromDB = null;
+            idFromDB = 0;
+            anoWindow.log.info("Данные введены некорректно");
             JOptionPane.showMessageDialog(null, "Некорректные логин и/или пароль.");
             throw new IllegalArgumentException("Некорректные логин и/или пароль");
         }
-        // иначе создать объект User через конструктор и вернуть его
-        return new User(idFromDB, loginFromDB, passFromDB, anoWindow);
+        User user = new User(idFromDB, loginFromDB, anoWindow);
+        passValuePasswordField = null;
+        passFromDB = null;
+        loginFromDB = null;
+        idFromDB = 0;
+        anoWindow.log.info("checkLoginPasswordAndParseUserFromDB(..) Конец - данные проверены и стерты, пользователь создан");
+        return user;
     }
 
     /**
      * Конструктор пользователя, в который передаются данные, загруженные из БД.
-     * Приватный, вызывается из метода проверки логина и пароля.
+     * Приватный, вызывается из метода проверки логина и пароля после проверки .
+     * Загрузит из БД информацию о собеседниках для словарей, но не информацию о сообщениях (загрузка сообщений по клику).
      * @param id пользователя, который присвоен ему в БД и загружен из нее
      * @param login пользователя
-     * @param password пользователя
      * @param window главное окно, содержит логгер и прочее
      */
     private User(
-            Integer id, String login, String password,
+            Integer id, String login,
             JFrame window
     ) {
         this.anoWindow = (AnoWindow)window;
@@ -117,113 +134,116 @@ public class User {
         log.info("User(..) Начало");
         this.id = id;
         this.login = login;
-        this.password = password;
+        //this.password = password;
         this.disputerIdsAndChatListRows = new LinkedHashMap<Integer, ChatListRow>();
         this.disputerLoginsAndChatListRows = new LinkedHashMap<String, ChatListRow>();
-        // ВНИМАНИЕ! В словаре chats: Integer - это id собеседника
         this.chats = new LinkedHashMap<Integer, Chat>();
         disputersUpdate();
-        // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
         log.info("User(..) Конец");
     }
     /**
-     * Обновит словари собеседников: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
+     * Обновит словари с информацией о собеседниках: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
      */
     protected void disputersUpdate() {
         log.info("disputersUpdate() Начало");
         parseDisputerIdsAndChatListRows(getChatListRowsFromDB(this));
-        parseDisputerLoginsAndChatListRows();
-        // ВНИМАНИЕ! В словаре chats: Integer - это id собеседника
+
+        ArrayList<Integer> disputerIds = new ArrayList<Integer>(disputerIdsAndChatListRows.keySet());
+        parseDisputerLoginsAndChatListRows(getIdsAndLoginsFromDB(disputerIds));
+
         parseChats();
-        // в результате объекты чатов созданы, но сообщения не загружены (будут загружены при открытии диалога)
         log.info("disputersUpdate() Конец");
     }
 
+    /**
+     * Метод, получающий из БД список записей о диалогах для пользователя.
+     * @param user пользователь, для которого необходимо получить записи
+     * @return список записей о диалогах - таблица Object
+     */
+    private ArrayList<ArrayList<Object>> getChatListRowsFromDB(User user) {
+        log.info("getIdFromDB() Начало");
+        ArrayList<ArrayList<Object>> chatListRowsFromDB = anoWindow.getDb().selectAllChatListRowWhereId(user);
+        log.info("getIdFromDB() Конец - собеседники есть? " + (chatListRowsFromDB!=null));
+        return chatListRowsFromDB;
+    }
     /**
      * Заполняет словарь ''id собеседников -> записи о диалогах'', в которых состоит пользователь user,
      * обработав результаты запроса к таблице записей о диалогах из БД и приведя их к нужному типу
      */
     public void parseDisputerIdsAndChatListRows(ArrayList<ArrayList<Object>> chatListRowsFromDB){
         log.info("parseDisputerIdsAndChatListRows() Начало - парс словаря ''id собеседника -> запись о диалоге''");
+        if (chatListRowsFromDB == null) return;
         for (var chatListWhereId : chatListRowsFromDB) {
             Integer idUser1 = null;
             Integer idUser2 = null;
             String comment = null;
             try {
-                idUser1 = ((Number) chatListWhereId.get(1)).intValue();
-                idUser2 = ((Number) chatListWhereId.get(2)).intValue();
-                comment = chatListWhereId.get(4).toString();
+                idUser1 = (chatListWhereId.get(1) != null) ? ((Number) chatListWhereId.get(1)).intValue() : null;
+                idUser2 = (chatListWhereId.get(2) != null) ? ((Number) chatListWhereId.get(2)).intValue() : null;
+                comment = (chatListWhereId.get(4) != null) ? chatListWhereId.get(4).toString() : null;
             }catch (IndexOutOfBoundsException e){
                 log.problem("Ячейки строки chatList не распознаны при выгрузке из БД - массив пуст" + anoWindow.lSep + e.getMessage());
                 e.printStackTrace();
             }
-            //конструктор проверит, если такой записи нет в БД, то создаст ее.
-            //todo проверить, нужен ли такой подход, может проверка - лишняя?
             ChatListRow chatListRow = new ChatListRow(idUser1, idUser2, comment, anoWindow);
             Integer disputerId = calculateDisputerId(chatListRow);
             disputerIdsAndChatListRows.put(disputerId, chatListRow);
             log.info("В словарь ''id собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником с id=" + disputerId + " и tableName=" + chatListRow.getTableName());
         }
-        log.info("parseDisputerIdsAndChatListRows() Начало - парс словаря ''id собеседника -> запись о диалоге''");
-    }
-    /**
-     * Метод, получающий из БД список записей о диалогах для пользователя.
-     * Все полученные данные - таблица Object
-     * @param user пользователь, для которого необходимо получить записи
-     * @return список записей о диалогах
-     */
-    private ArrayList<ArrayList<Object>> getChatListRowsFromDB(User user) {
-        return anoWindow.getDb().selectAllChatListRowWhereId(user);
+        log.info("parseDisputerIdsAndChatListRows() Конец - парс словаря ''id собеседника -> запись о диалоге''");
     }
 
     /**
-     * Получает словарь login собеседников -> запись о диалогах, в которых состоит пользователь user,
-     * обработав результаты запроса к таблице пользователей из БД и приведя их к нужному типу
-     * @return словарь login собеседников -> запись о диалогах
+     * Метод, получающий из таблицы пользователей БД для данных id, две колонки: id и login
+     * @param disputerIds список id, для которых нужно получить результат
+     * @return список записей о диалогах - таблица Object
      */
-    private LinkedHashMap<String, ChatListRow> parseDisputerLoginsAndChatListRows() {
-        System.out.println("--**-- Метод parseDisputerLoginsAndChatListRows");
-        var disputerLoginsAndChatListRows = new LinkedHashMap<String, ChatListRow>();
-        var disputerIds = new ArrayList<Integer>(disputerIdsAndChatListRows.keySet());
-        ArrayList<ArrayList<Object>> disputerIdsAndLogins = getIdsAndLoginsFromDB(disputerIds);
-        System.out.println("--**-- Вернулись в Метод parseDisputerLoginsAndChatListRows");
-        for (var disputerIdAndLogin : disputerIdsAndLogins) {
-            String disputerLogin = (String) disputerIdAndLogin.get(1);
-            Integer disputerId = (Integer) disputerIdAndLogin.get(0);
+    private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList<Integer> disputerIds) {
+        log.info("getIdsAndLoginsFromDB(..) Начало");
+        ArrayList<ArrayList<Object>> IdsAndLoginsFromDB = anoWindow.getDb().selectIdsAndLoginsForIds(disputerIds);
+        log.info("getIdsAndLoginsFromDB(..) Конец - собеседники есть? " + (IdsAndLoginsFromDB!=null));
+        return IdsAndLoginsFromDB;
+    }
+    /**
+     * Получает словарь ''login собеседников -> запись о диалогах'', в которых состоит пользователь user,
+     * обработав результаты запроса к таблице пользователей из БД и приведя их к нужному типу
+     */
+    private void parseDisputerLoginsAndChatListRows(ArrayList<ArrayList<Object>> disputerIdsAndLoginsFromDB) {
+        log.info("parseDisputerLoginsAndChatListRows(..) Начало - парс словаря ''login собеседника -> запись о диалоге''\");");
+        if(disputerIdsAndLoginsFromDB == null) return;
+        for (var disputerIdAndLogin : disputerIdsAndLoginsFromDB) {
+            String disputerLogin = (disputerIdAndLogin.get(1) != null) ? disputerIdAndLogin.get(1).toString() : null;
+            Integer disputerId = (disputerIdAndLogin.get(0) != null) ? ((Number) disputerIdAndLogin.get(0)).intValue() : null;
             ChatListRow disputerChatListRow = disputerIdsAndChatListRows.get(disputerId);
             disputerLoginsAndChatListRows.put(
                     disputerLogin,
                     disputerChatListRow
             );
-            System.out.println("--**-- disputerLogin = " + disputerLogin + " disputerId = " + disputerId);
+            log.info("В словарь ''login собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником с disputerLogin = " + disputerLogin + " и disputerId = " + disputerId);
         }
-        System.out.println("--**-- Вышли из Метод parseDisputerLoginsAndChatListRows");
-        return disputerLoginsAndChatListRows;
-    }
-    /**
-     * Метод, получающий из таблицы пользователей БД для данных id, две колонки: id и login
-     * Все полученные данные - таблица Object
-     * @param disputerIds список id, для которых нужно получить результат
-     * @return
-     */
-    private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList<Integer> disputerIds) {
-        System.out.println("--**-- Метод getIdsAndLoginsFromDB");
-        return anoWindow.getDb().selectIdsAndLoginsForIds(disputerIds);
+        log.info("parseDisputerLoginsAndChatListRows(..) Конец - парс словаря ''login собеседника -> запись о диалоге''");
     }
 
     /**
-     * Создает словарь id собеседника->Чат для пользователя, не обращаясь к БД,
-     * на основе уже заполненного словаря disputerIdsAndChatListRows (id собеседника->запись о диалоге)
+     * Создает словарь ''id собеседника -> чат для пользователя'', не обращаясь к БД,
+     * на основе уже заполненного словаря disputerIdsAndChatListRows (id собеседника->запись о диалоге).
+     * Сообщения из БД в хранилище не грузятся - ждут клика для загрузки.
      * @return словарь id собеседника->Чат для пользователя
      */
-    private LinkedHashMap<Integer, Chat> parseChats() {
-        var chats = new LinkedHashMap<Integer, Chat>();
+    private void parseChats() {
+        log.info("parseChats() Начало");
+        if (disputerIdsAndChatListRows == null) {
+            log.warning("Чаты не созданы, потому что собеседников нет");
+            return;
+        }
         for (var disputerIdAndChatListRow : disputerIdsAndChatListRows.entrySet()) {
             Integer disputerId = disputerIdAndChatListRow.getKey();
-            Chat disputerChat = new Chat(disputerIdAndChatListRow.getValue().getTableName(), anoWindow);
-            chats.put(disputerId, disputerChat);
+            ChatListRow chatListRow = disputerIdAndChatListRow.getValue();
+            Chat chat = new Chat(chatListRow.getTableName(), anoWindow);
+            chats.put(disputerId, chat);
+            log.info("В словарь ''id собеседника -> чат для пользователя'' добавлен чат с disputerId = " + disputerId + " и chat.getTableName() = " + chat.getTableName());
         }
-        return chats;
+        log.info("parseChats() Конец - парс словаря ''id собеседника -> чат для пользователя''");
     }
 
     protected void addNewDisputerFromDBNotify(String[] chatListRowParts){
@@ -350,6 +370,7 @@ public class User {
      * @return id, присвоенный в БД, для user
      */
     private ArrayList<ArrayList<Object>> getIdFromDB(String login){
+        //todo надо создать другой метод, который не запрашивает пароль
         return anoWindow.getDb().selectIdLoginPasswordForUser(login);
     }
 }

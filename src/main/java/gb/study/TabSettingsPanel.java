@@ -116,22 +116,23 @@ public class TabSettingsPanel extends JPanel {
         @Override
         public void actionPerformed(ActionEvent e) {
             log.info("Обработчик кнопки logingButton Начало");
-            // Взаимодействие с БД - начало
-            // 0. Идентификация юзера (логин) и подтверждение (пароль), а также получение его id из БД
-            // При создании пользователя у него создадутся два словаря:
-            // - словарь id->запись о диалоге (1 запрос к записям о диалогах)
-            // - словарь логин->запись о диалоге (1 запрос к юзерам) - используем его
+            if(loginValueTextArea.getText()=="" || loginValueTextArea.getText()==null){
+                log.problem("Не введен логин пользователя");
+                JOptionPane.showMessageDialog(null, "Не введен логин пользователя");
+                return;
+            }
             User user = null;
             try {
                 user = User.checkLoginPasswordAndParseUserFromDB(
                         loginValueTextArea.getText(),
-                        passValuePasswordField.getPassword().toString(),
+                        passValuePasswordField,
                         anoWindow
                 );
             } catch (IllegalArgumentException argExp) {
                 log.problem(argExp.getMessage());
             }
             anoWindow.setUser(user);
+            log.info("Пользователь проверен и создан, словари загружены, а сообщения - нет.");
             // 1. Добавить все disputerTextArea и повесить на них обработчики
             anoWindow.tabChatPanel.updateDisputerLoginsPanel();
             // 2. Запустить все прослушивания

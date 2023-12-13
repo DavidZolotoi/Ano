@@ -1,19 +1,36 @@
 package gb.study;
 
+import javax.swing.*;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 public class Chat {
+    private AnoWindow anoWindow;   //БД в его свойстве
+    private Log log;
+
     private String tableName;
+    protected String getTableName() {
+        return tableName;
+    }
+
     private LinkedHashMap<Integer, Message> messages;
-    public LinkedHashMap<Integer, Message> getMessages() {
+    protected LinkedHashMap<Integer, Message> getMessages() {
         return messages;
     }
 
-    public Chat(String tableName, AnoWindow anoWindow) {
+    /**
+     * Создает чат с хранилищем messages, но для его заполнения используется отдельный метод
+     * @param tableName Имя чата - соответствует наименованию таблицы в БД
+     * @param window главное окно, содержит логгер и прочее
+     */
+    public Chat(String tableName, JFrame window) {
+        this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
+        log.info("Chat(..) Начало");
         this.tableName = tableName;
-        this.messages = new LinkedHashMap<>();  //пока не грузим из БД - ждем клика
+        this.messages = new LinkedHashMap<>();
+        log.info("Chat(..) Конец - чат с хранилищем messages создан, но сообщения пока без клика не загружены: " + tableName);
     }
 
     /**
@@ -25,7 +42,7 @@ public class Chat {
      *                  в том числе с db и tabChatPanel, которая необходима для работы метода
      */
     protected void downloadLastMessages(ChatListRow chatListRow, Integer messageCount, AnoWindow anoWindow){
-        // 1. Згрузить и добавить сообщения в словарь
+        // 1. Загрузить и добавить сообщения в словарь
         for (var message : anoWindow.getDb().selectLastMessages(chatListRow, messageCount)) {
             Integer newMessageId = (Integer) message.get(0);
             if (messages.containsKey(newMessageId)){

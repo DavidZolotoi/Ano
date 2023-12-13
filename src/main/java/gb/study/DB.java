@@ -103,14 +103,14 @@ public class DB {
      * @return созданный Statement
      */
     private Statement createStatement(Connection connection) {
-        log.info("createStatement(Connection connection) Начало создания stmt");
+        log.info("createStatement(..) Начало создания stmt");
         Statement stmt = null;
         try {
             stmt = connection.createStatement();
         } catch (SQLException e) {
             log.problem("Проблема с созданием Statement");
         }
-        log.info("createStatement(Connection connection) Конец создания stmt");
+        log.info("createStatement(..) Конец создания stmt");
         return stmt;
     }
 
@@ -122,7 +122,7 @@ public class DB {
      * @return соединение
      */
     protected Connection createConnection(String url, String user, String password){
-        log.info("createConnection(String url, String user, String password) Начало");
+        log.info("createConnection(..) Начало");
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
@@ -134,7 +134,7 @@ public class DB {
         } catch (SQLException e) {
             log.problem("Проблема - исключение при вызове conn = DriverManager.getConnection(url, user, password)");
         }
-        log.info("createConnection(String url, String user, String password) Конец");
+        log.info("createConnection(..) Конец");
         return conn;
     }
 
@@ -185,28 +185,33 @@ public class DB {
     }
 
     /**
-     * Универсальный метод, выполняющий запрос в БД
-     * устанавливает свое соединение с базой и выполняет запрос
+     * Универсальный метод, выполняющий запрос в БД.
+     * Устанавливает свое соединение с базой и выполняет запрос.
      * @param query запрос, который необходимо выполнить
      */
     public void executeQueryVoid(String query) {
+        log.info("executeQueryVoid(..) Начало выполнения действия");
         Statement stmtForQuery = createStatement(
                 createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"))
         );
         try {
             stmtForQuery.execute(query);
+        } catch (SQLTimeoutException e) {
+            log.problem("Истекло время ожидания при общении с БД." + e.getMessage());
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с stmtForQuery.execute(insertQuery): \n" + e.getMessage());
+            log.problem("Ошибка доступа к БД." + e.getMessage());
         }
+        log.info("executeQueryVoid(..) Конец выполнения действия");
     }
 
     /**
-     * Универсальный метод, выдающий отчет из базы данных ио запросу - таблица - коллекция коллекций
+     * Универсальный метод, выдающий отчет из базы данных по запросу.
+     * Устанавливает свое соединение с базой и выполняет запрос.
      * @param query запрос SQL
-     * @return отчет из базы данных
+     * @return отчет из базы данных -> таблица = коллекция коллекций
      */
     public ArrayList<ArrayList<Object>> executeQueryReport(String query){
-        System.out.println("--**-- Метод executeQueryReport");
+        log.info("executeQueryReport(..) Начало универсального метода запроса в БД с выводом");
         ArrayList<ArrayList<Object>> resultReport = new ArrayList<>();
         try (
                 Statement stmtForQuery = createStatement(
@@ -222,13 +227,16 @@ public class DB {
                     String columnName = metaData.getColumnName(newColumn);
                     Object cellValue = newRow.getObject(newColumn);
                     newRowReport.add(cellValue);
-                    System.out.println(columnName + ": " + cellValue);
                 }
                 resultReport.add(newRowReport);
+                log.info("Выгружена новая строка: " + newRowReport.toString());
             }
+        } catch (SQLTimeoutException e) {
+            log.problem("Истекло время ожидания при общении с БД." + e.getMessage());
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.problem("Ошибка доступа к БД." + e.getMessage());
         }
+        log.info("executeQueryReport(..) Конец универсального метода запроса в БД с выводом");
         return resultReport;
     }
 
@@ -361,13 +369,15 @@ public class DB {
     }
 
     /**
-     * Метод, получающий id, login, password из таблицы user в БД.
+     * Метод, получающий id, login, password из таблицы user в БД по логину
      * @param login пользователя
      */
     public ArrayList<ArrayList<Object>> selectIdLoginPasswordForUser(String login) {
+        log.warning("selectIdLoginPasswordForUser(..) Начало");
         String queryForGetIdLoginPassword =
                 "SELECT usid, uslogin, uspassword FROM " + DB.settings.get("table_name_for_user") + " " +
                         "WHERE uslogin = '" + login + "'";
+        log.warning("selectIdLoginPasswordForUser(..) Конец - далее запрос в базу и return");
         return executeQueryReport(queryForGetIdLoginPassword);
     }
 
@@ -401,15 +411,16 @@ public class DB {
     }
 
     /**
-     * Метод, получающий id из таблицы chatlist в БД.
-     * @param chatListRow запись о диалоге
+     * Метод, получающий id из таблицы chatlist в БД по наименованию таблицы.
+     * @param chatListRow запись о диалоге, содержащая наименование таблицы
      * @return id записи о диалоге
      */
     public ArrayList<ArrayList<Object>> selectIdForChatListRow(ChatListRow chatListRow) {
+        log.info("selectIdForChatListRow() Начало");
         String queryForSelectId =
                 "SELECT clid FROM " + DB.settings.get("table_name_for_chat_list") + " " +
                         "WHERE cltablename = '" + chatListRow.getTableName() + "'";
-        // может вернуться null - обработать выше по уровню
+        log.info("selectIdForChatListRow() Конец, далее действие в return");
         return executeQueryReport(queryForSelectId);
     }
 
@@ -418,6 +429,7 @@ public class DB {
      * @param chatListRow объект записи, которую необходимо добавить
      */
     public void insertNewChatListRow(ChatListRow chatListRow) {
+        log.info("insertNewChatListRow(..) Начало выполнения действия");
         String queryForInsertChatList =
                 "INSERT INTO " + DB.settings.get("table_name_for_chat_list") + " " +
                         "(cluseridmin, cluseridmax, cltablename, clcomment) " +
@@ -429,6 +441,7 @@ public class DB {
                         ");"
                 ;
         executeQueryVoid(queryForInsertChatList);
+        log.info("insertNewChatListRow(..) Конец - добавлена запись о диалоге: " + chatListRow.getTableName());
     }
 
     /**
@@ -436,6 +449,7 @@ public class DB {
      * @param chatListRow объект записи, содержащий наименование таблицы (tableName)
      */
     public void createNewTableForChat(ChatListRow chatListRow) {
+        log.info("createNewTableForChat(..) Начало");
         String queryForCreateNewTable =
                 "CREATE TABLE IF NOT EXISTS " + chatListRow.getTableName() + " (" +
                         "zyid SERIAL PRIMARY KEY, " +
@@ -446,6 +460,7 @@ public class DB {
                         ");"
                 ;
         executeQueryVoid(queryForCreateNewTable);
+        log.info("createNewTableForChat(..) Конец - создана таблица: " + chatListRow.getTableName());
     }
 
     /**
@@ -453,24 +468,25 @@ public class DB {
      * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
      */
     public void addForeignKeyForChat(ChatListRow chatListRow) {
+        log.info("addForeignKeyForChat(..) Начало");
         String queryForAddForeignKey =
                 "ALTER TABLE " + chatListRow.getTableName() + " " +
                         "ADD CONSTRAINT fkzyauthorid FOREIGN KEY (zyauthorid) " +
                         "REFERENCES " + DB.settings.get("table_name_for_user") + " (usid);"
                 ;
         executeQueryVoid(queryForAddForeignKey);
+        log.info("addForeignKeyForChat(..) Конец - внешний ключ для id автора установлен в таблице: " + chatListRow.getTableName());
     }
 
     /**
-     * Метод, добавляющий функцию уведомлений для новой таблицы диалога.
-     * Также обновляет имена в словаре chatListRow
-     * для создаваемой функции уведомлений и создаваемой её уведомлений для прослушивания.
-     * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
+     * Метод, добавляющий функцию для создания уведомлений о новых сообщениях в новой таблицы диалога.
+     * @param chatListRow объект записи о диалоге, содержащий словарь всех наименований
      */
     public void createFunctionNotifyForNewMessage(ChatListRow chatListRow) {
+        log.info("createFunctionNotifyForNewMessage(..) Начало");
         String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
         String notifyName =  chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
-        String tableName = chatListRow.getTableName(); //в конструкторе chatListRow присваивается nameFromDB.get(NAME.TABLE);
+        String tableName = chatListRow.getTableName(); //это не из БД - в конструкторе chatListRow присваивается nameFromDB.get(NAME.TABLE);
         String queryForCreateFunctionNotify =
             "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
             " RETURNS trigger\n" +
@@ -488,15 +504,16 @@ public class DB {
             ";"
         ;
         executeQueryVoid(queryForCreateFunctionNotify);
+        log.info("createFunctionNotifyForNewMessage(..) Конец - создана ф-я создания уведомлений о новых сообщения в таблице: " + chatListRow.getTableName());
     }
 
     /**
-     * Метод, создающий триггер для новой таблицы диалога,
-     * который будет вызывать функцию уведомлений, при добавлении новой записи о диалоге в таблицу.
-     * Также обновляет имя триггера в словаре chatListRow.
-     * @param chatListRow объект записи о диалоге, содержащий наименование таблицы (tableName)
+     * Метод, создающий триггер для новой таблицы диалога, срабатывающий на добавление новой записи о диалоге в таблицу,
+     * который будет вызывать функцию уведомлений.
+     * @param chatListRow объект записи о диалоге, содержащий словарь всех наименований
      */
     public void createTriggerForExecuteProcedure(ChatListRow chatListRow) {
+        log.info("createTriggerForExecuteProcedure(..) Начало");
         String tableName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TABLE);
         String triggerName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TRIGGER);
         String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
@@ -508,6 +525,7 @@ public class DB {
                         "EXECUTE PROCEDURE " + functionName + ";"
                 ;
         executeQueryVoid(queryForCreateTrigger);
+        log.info("createTriggerForExecuteProcedure(..) Конец - создан триггер для таблицы: " + chatListRow.getTableName());
     }
 
     /**
@@ -543,7 +561,7 @@ public class DB {
      * @return id и логины пользователей
      */
     public ArrayList<ArrayList<Object>> selectIdsAndLoginsForIds(ArrayList<Integer> userIds) {
-        System.out.println("--**-- Метод selectIdsAndLoginsForIds");
+        log.info("selectIdsAndLoginsForIds(..) Начало");
         String queryForSelectIdsAndLoginsForIdsPart1 =
                 "SELECT usid, uslogin FROM " + DB.settings.get("table_name_for_user") + " " +
                 "WHERE usid = " + userIds.get(0);
@@ -558,6 +576,7 @@ public class DB {
         String queryForSelectIdsAndLoginsForIds =
                 queryForSelectIdsAndLoginsForIdsPart1 + queryForSelectIdsAndLoginsForIdsPart2;
 
+        log.info("selectIdsAndLoginsForIds(..) Конец - далее действие в return");
         return executeQueryReport(queryForSelectIdsAndLoginsForIds);
     }
 
