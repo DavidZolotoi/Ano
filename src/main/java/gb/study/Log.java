@@ -21,17 +21,14 @@ public class Log {
      * @param logFilePath путь к файлу для логов
      * @return ссылка на объект логгера
      */
-    public static Log getLog(Path logFilePath) {
+    protected static Log getLog(Path logFilePath) {
         if (Log.log == null)
             Log.log = new Log(logFilePath);
         return Log.log;
     }
 
     private final Logger logger;
-    private final Path logFileParentPath;
-    public Path getLogFileParentPath() {
-        return logFileParentPath;
-    }
+    private final Path pathLogFileParent;
 
     /**
      * Конструктор для одноразового создания логгера.
@@ -41,10 +38,10 @@ public class Log {
      * @param logFileParentPath путь к родительскому каталогу для файла с логами.
      */
     private Log(Path logFileParentPath) {
-        this.logFileParentPath = logFileParentPath;
+        this.pathLogFileParent = logFileParentPath;
         this.logger = Logger.getLogger(Log.class.getName());
         String logFileName = "logs.log";
-        Path logFilePath = logFileParentPath.resolve(logFileName);
+        Path logFilePath = pathLogFileParent.resolve(logFileName);
         File logFile = new File(logFilePath.toString());
         try {
             if(logFile.createNewFile())
@@ -69,32 +66,41 @@ public class Log {
 
     /**
      * Просто информация о работе
-     * @param message текст информации
+     * @param messages текст информации, можно вводить кусками через запятую,
+     *                которые в последствии заменятся на пробел.
      */
-    public void info(String message) {
-        message = System.lineSeparator() + message;
-        logger.info(message);
-        alternativeWrite(message);
+    protected void info(String... messages) {
+        StringBuilder allMessages = new StringBuilder(System.lineSeparator());
+        for (var oneMessage : messages)
+            allMessages.append(oneMessage).append(" ");
+        logger.info(allMessages.toString());
+        alternativeWrite(allMessages.toString());
     }
 
     /**
      * Предупреждение о том, что важно или опасно
-     * @param message информация о предупреждении
+     * @param messages информация о предупреждении, можно вводить кусками через запятую,
+     *                которые в последствии заменятся на пробел.
      */
-    public void warning(String message) {
-        message = System.lineSeparator() + message;
-        logger.warning(message);
-        alternativeWrite(message);
+    protected void warning(String... messages) {
+        StringBuilder allMessages = new StringBuilder(System.lineSeparator());
+        for (var oneMessage : messages)
+            allMessages.append(oneMessage).append(" ");
+        logger.warning(allMessages.toString());
+        alternativeWrite(allMessages.toString());
     }
 
     /**
      * Проблема, из-за которой следует завершить работу приложения
-     * @param message информация о проблеме
+     * @param messages информация о проблеме, можно вводить кусками через запятую,
+     *                которые в последствии заменятся на пробел.
      */
-    public void problem(String message) {
-        message = System.lineSeparator() + message;
-        logger.severe(message);
-        alternativeWrite(message);
+    protected void problem(String... messages) {
+        StringBuilder allMessages = new StringBuilder(System.lineSeparator());
+        for (var oneMessage : messages)
+            allMessages.append(oneMessage).append(" ");
+        logger.severe(allMessages.toString());
+        alternativeWrite(allMessages.toString());
         //todo код для завершения программы
     }
 

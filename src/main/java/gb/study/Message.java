@@ -1,10 +1,14 @@
 package gb.study;
 
+import javax.swing.*;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 
 public class Message {
+    private AnoWindow anoWindow;   //БД в его свойстве
+    private Log log;
+
     private Integer id;
     public Integer getId() {
         return id;
@@ -45,16 +49,21 @@ public class Message {
             Integer authorId,
             String content,
             Timestamp datetime,     //todo сделать версию конструктора с приемом времени
-            String comment
+            String comment,
+            JFrame window
     ){
+        //todo хоть все проверки и уже сделаны "до", но вероятно стоит дописать их и здесь,
+        // ведь мало ли как в будущем изменится код. Лишняя проверка - не лишняя
+        this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
+        log.info("Message(..) Начало");
         this.id = id;
         this.authorId = authorId;
         this.content = content;
         this.datetime = datetime; //Timestamp.from(Instant.now());
-        //System.out.println("время сообщения: " + datetime);
         this.comment = comment;
-        //todo переделать определение автора (индикатора отступа)
-        this.isMarginRight = !authorId.equals("Comp");
+        this.isMarginRight = !authorId.equals(anoWindow.getUser().getId());
+        log.info("Message(..) Конец - сообщение создано");
     }
 
     /**
@@ -75,10 +84,8 @@ public class Message {
         this.authorId = authorId;
         this.content = content;
         this.datetime = Timestamp.from(Instant.now());
-        //System.out.println("время сообщения: " + datetime);
         this.comment = comment;
-        //todo переделать определение автора (индикатора отступа)
-        this.isMarginRight = !authorId.equals("Comp");
+        this.isMarginRight = !authorId.equals(anoWindow.getUser().getId());
         // отправить сообщение в БД
         sendToDB(this, chatListRow, anoWindow);
     }

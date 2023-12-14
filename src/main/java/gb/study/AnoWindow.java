@@ -23,8 +23,8 @@ public class AnoWindow extends JFrame {
     protected TabSettingsPanel tabSettingsPanel;
     protected TabChatPanel tabChatPanel;
 
-    public int windowWidth;
-    public int windowHeigh;
+    public Integer windowWidth;
+    public Integer windowHeigh;
 
     public AnoWindow(Log log) {
         log.info("AnoWindow(Log log) Начало");
@@ -34,15 +34,15 @@ public class AnoWindow extends JFrame {
 
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         Dimension screenSize = toolkit.getScreenSize();
-        int screenWidth = screenSize.width;
-        int screenHeight = screenSize.height;
+        Integer screenWidth = screenSize.width;
+        Integer screenHeight = screenSize.height;
         this.windowWidth = (int)(screenWidth * 0.50);
         this.windowHeigh = (int)(screenHeight * 0.75);
 
         this.log.info(
-                "Размеры экрана: " + screenWidth + "x" + screenHeight +
-                "." + lSep + "Установка размеров окна: " + this.windowWidth + "x" + this.windowHeigh +
-                "." + lSep + "Установка заголовка."
+                "Размеры экрана: ", screenWidth.toString(), "x", screenHeight.toString(),
+                ".", lSep, "Установка размеров окна: ", this.windowWidth.toString(), "x", this.windowHeigh.toString(),
+                ".", lSep, "Установка заголовка."
         );
         setSize(this.windowWidth, this.windowHeigh);
         setTitle("Ano - лучший в мире чат!");

@@ -44,7 +44,7 @@ public class TabChatPanel extends JPanel {
         super();
         this.anoWindow = (AnoWindow)window;
         this.log = this.anoWindow.log;
-        user = anoWindow.getUser(); //todo видимо надо отсюда удалить, потому юзер распознается позже
+        //user = anoWindow.getUser(); //todo видимо надо отсюда удалить, потому юзер распознается позже
 
         // 0. САМО ОКНО
         setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
@@ -175,60 +175,90 @@ public class TabChatPanel extends JPanel {
      * (Добавляет чат и вешает на него обработчик)
      */
     protected void updateDisputerLoginsPanel(){
-        user = anoWindow.getUser();
-        // 0. Прогон по списку диалогов с этим юзером (disputer), с повешанными обработчиками
-        for (var disputerLoginAndChatListRow : user.getDisputerLoginsAndChatListRows().entrySet()) {
+        log.info("updateDisputerLoginsPanel() Начало");
+        user = anoWindow.getUser();//только на этом моменте у anoWindow есть полноценный пользователь со своими словарями
+        var disputerLoginsAndChatListRows = user.getDisputerLoginsAndChatListRows().entrySet();
+        if (disputerLoginsAndChatListRows == null) {
+            log.warning("updateDisputerLoginsPanel() Конец - словарь disputerLoginsAndChatListRows = null");
+            return;
+        }
+        for (var disputerLoginAndChatListRow : disputerLoginsAndChatListRows) {
             addNewDisputerAndListener(disputerLoginAndChatListRow);
         }
+        log.info("updateDisputerLoginsPanel() Конец - на панель собеседников добавлены все логины",
+                "и на них повешаны обработчики");
     }
     /**
      * Добавляет чат с новым логином и вешает на него обработчик
      * @param disputerLoginAndChatListRow информация о новом чате
      */
     protected void addNewDisputerAndListener(Map.Entry<String, ChatListRow> disputerLoginAndChatListRow) {
-        // 1. добавить JTextArea с его disputerLogin и повесить на него обработчик
+        log.info("addNewDisputerAndListener(..) Начало");
+        if (disputerLoginAndChatListRow == null) {
+            log.warning("addNewDisputerAndListener(..) Конец - словарь disputerLoginsAndChatListRows = null");
+            return;
+        }
         String disputerLogin = disputerLoginAndChatListRow.getKey();
         JTextArea loginTextArea = addDisputerLoginTextArea(disputerLogin);
-        // 2. повесить на него обработчик
         loginAddMouseListener(loginTextArea);
+        log.info("addNewDisputerAndListener(..) Конец - добавлен ", disputerLogin, "и повешан обработчик - двумя разными методами");
     }
-
     /**
      * Добавляет на панель логинов компонент с логином,
      * @param disputerLogin логин пользователя, который необходимо добавить
      * @return ссылку на добавленный компонент
      */
     protected JTextArea addDisputerLoginTextArea(String disputerLogin) {
+        log.info("addDisputerLoginTextArea(..) Начало");
+        if (disputerLogin == null) {
+            log.warning("addDisputerLoginTextArea(..) Конец - disputerLogin для добавления = null");
+            return null;
+        }
         JTextArea loginTextArea = new JTextArea(disputerLogin);
         loginTextArea.setEditable(false);
         loginTextArea.setLineWrap(true);
         loginTextArea.setWrapStyleWord(true);
         anoWindow.tabChatPanel.getLoginsPanel().add(loginTextArea);
+        log.info("addDisputerLoginTextArea(..) Конец");
         return loginTextArea;
     }
-
     /**
      * Вешает обработчик на клик по компоненту с пользователем (чату)
      * @param loginTextArea ссылка на компонент с логином пользователя (чат)
      */
     private void loginAddMouseListener(JTextArea loginTextArea) {
+        log.info("loginAddMouseListener(..) Начало");
+        if (loginTextArea == null) {
+            log.warning("loginAddMouseListener(..) Конец - loginTextArea для добавления = null");
+            return;
+        }
         loginTextArea.addMouseListener(new MouseAdapter() {
             public void mouseReleased(MouseEvent e) {
-                JTextArea sourceLoginTextArea = (JTextArea) e.getSource();
-                // Проверка - если активный чат после клика не поменялся, то выходим
-                if (!user.isChangeActiveChatListRow(sourceLoginTextArea)) return;
-                // Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
-                // в словарь добавляются только сообщения, которые еще не скачаны
+                log.info("loginTextArea.addMouseListener(..) Начало");
                 String disputerLogin = loginTextArea.getText();
-                ChatListRow disputerChatListRow = user.getDisputerLoginsAndChatListRows().get(disputerLogin);
-                Integer disputerId = user.calculateDisputerId(disputerChatListRow);
-                user.getChats().get(disputerId).downloadLastMessages(
-                        disputerChatListRow,
-                        Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
+                if (    //todo переделать - это неправильное сообщение
+                    user.getDisputerLoginsAndChatListRows() == null ||
+                    user.getDisputerLoginsAndChatListRows().containsKey(disputerLogin)
+                ){
+                    log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
+                            "Отсутствует словарь ''login->chatlist'' или логин (по которому кликнули) в этом словаре пользователя.");
+                }
+                ChatListRow chatListRowClick = user.getDisputerLoginsAndChatListRows().get(disputerLogin);
+                Integer disputerId = user.calculateDisputerId(chatListRowClick);
+                if (!user.isChangeActiveChatListRow(chatListRowClick)) return;
+                if ( user.getChats() == null || user.getChats().containsKey(disputerId) ){
+                    log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
+                            "Отсутствует словарь ''id->chat'' или id (по которому кликнули) в этом словаре пользователя.");
+                }
+                user.getChats().get(disputerId).parseLastMessages(
+                        chatListRowClick,
+                        anoWindow.tabSettingsPanel.parseCountMessagesForDownload(),
                         anoWindow
                 );
+                log.info("loginTextArea.addMouseListener(..) Конец - описание обработчика-метода в аргументе");
             }
         });
+        log.info("loginAddMouseListener(..) Конец - описания обработчика на логин");
     }
 
     /**

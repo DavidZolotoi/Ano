@@ -30,37 +30,58 @@ public class Chat {
         log.info("Chat(..) Начало");
         this.tableName = tableName;
         this.messages = new LinkedHashMap<>();
-        log.info("Chat(..) Конец - чат с хранилищем messages создан, но сообщения пока без клика не загружены: " + tableName);
+        log.info("Chat(..) Конец - чат с хранилищем messages создан, но сообщения пока без клика не загружены: ", tableName);
     }
 
     /**
-     * Загрузить в чат и на окно последние messageCount сообщений для чата,
+     * Метод, получающий из БД определенное количество последних сообщений
+     * @param chatListRow запись о диалоге
+     * @param messageCount количество загружаемых сообщений
+     * @return список последних сообщений - таблица Object
+     */
+    private ArrayList<ArrayList<Object>> getLastMessagesFromDB(ChatListRow chatListRow, Integer messageCount) {
+        log.info("getLastMessagesFromDB(..) Начало");
+        ArrayList<ArrayList<Object>> lastMessagesFromDB = anoWindow.getDb().selectLastMessages(chatListRow, messageCount);
+        log.info("getLastMessagesFromDB(..) Конец - сообщения есть?", ((Boolean)(lastMessagesFromDB!=null)).toString());
+        return lastMessagesFromDB;
+    }
+    /**
+     * Загрузить и распознать в чат и на окно последние messageCount сообщений для чата,
      * соответствующему записи о диалоге chatListRow.
      * @param chatListRow запись о диалоге
      * @param messageCount количество загружаемых сообщений
      * @param anoWindow главное окно со всеми его свойствами,
      *                  в том числе с db и tabChatPanel, которая необходима для работы метода
      */
-    protected void downloadLastMessages(ChatListRow chatListRow, Integer messageCount, AnoWindow anoWindow){
-        // 1. Загрузить и добавить сообщения в словарь
-        for (var message : anoWindow.getDb().selectLastMessages(chatListRow, messageCount)) {
-            Integer newMessageId = (Integer) message.get(0);
-            if (messages.containsKey(newMessageId)){
+    protected void parseLastMessages(ChatListRow chatListRow, Integer messageCount, AnoWindow anoWindow) {
+        log.info("parseLastMessages(..) Начало - парс словаря сообщений ''id -> Message''");
+        ArrayList<ArrayList<Object>> lastMessagesFromDB = getLastMessagesFromDB(chatListRow, messageCount);
+        if(lastMessagesFromDB == null) return;
+
+        for (var messageRow : lastMessagesFromDB) {
+            if (messageRow == null) continue;
+            //todo вероятно здесь и в остальных местах для таких случаев нужно использовать интерфейс парсера-конвертера
+            // но проверка на null вероятно должна здесь остаться
+            Integer messageId = (messageRow.get(0) != null) ? ((Number) messageRow.get(0)).intValue() : null;
+            if (messages.containsKey(messageId)){
                 continue;   // сохранять только то, чего нет в словаре
             }               // Проверка не лишняя, потому что создание сообщения ниже может содержать запрос в БД
-            Message newMessage = new Message(
-                    (Integer) message.get(0),
-                    (Integer) message.get(1),
-                    (String) message.get(2),
-                    (Timestamp) message.get(3),
-                    (String) message.get(4)
-            );
+            Integer messageAuthorId = (messageRow.get(1) != null) ? ((Number) messageRow.get(1)).intValue() : null;
+            String messageContent = (messageRow.get(2) != null) ? messageRow.get(2).toString() : null;
+            Timestamp messageDatetime = (messageRow.get(3) != null) ? (Timestamp) messageRow.get(3) : null;
+            String messageComment = (messageRow.get(4) != null) ? messageRow.get(4).toString() : null;
+            Message newMessage = new Message(messageId, messageAuthorId, messageContent, messageDatetime, messageComment, anoWindow);
             messages.put(newMessage.getId(), newMessage);
+            log.info("В словарь ''id -> Message'' добавлено сообщение",
+                    "с id =", newMessage.getId().toString());
         }
+
         // 2. Добавить сообщения на экран
         // todo может быть стоит ограничить по количеству или вынести в асинхронный метод (если много)
         if (chatListRow.getId() == anoWindow.getUser().getActiveChatListRow().getId()){
             anoWindow.tabChatPanel.addAndShowMessagesFromList(new ArrayList<>(messages.values()));
         }
+
+        log.info("parseLastMessages(..) Начало - парс словаря сообщений ''id -> Message''");
     }
 }

@@ -88,7 +88,8 @@ public class ChatListRow {
     private ArrayList<ArrayList<Object>> getIdFromDB(){
         log.info("getIdFromDB() Начало");
         ArrayList<ArrayList<Object>> idForChatListRow = anoWindow.getDb().selectIdForChatListRow(this);
-        log.info("getIdFromDB() Конец - присвоен ли id для записи о диалоге " + this.tableName + "? " + (idForChatListRow!=null));
+        log.info("getIdFromDB() Конец - присвоен ли id",
+                "для записи о диалоге ", this.tableName, "? ", ((Boolean)(idForChatListRow!=null)).toString());
         return idForChatListRow;
     }
     /**
@@ -100,7 +101,7 @@ public class ChatListRow {
     private Integer parseIdFromBD(ArrayList<ArrayList<Object>> chatListId){
         log.info("parseIdFromBD(..) Начало");
         if (chatListId == null || chatListId.isEmpty()){
-            log.warning("id ChatListRow не распознан при выгрузке из БД - массив пуст" +
+            log.warning("id ChatListRow не распознан при выгрузке из БД - массив пуст",
                     " => будет создана новая строка в БД и по новой распознана."
             );
             createNewTableForChatAndConfigure();
@@ -108,7 +109,7 @@ public class ChatListRow {
         }
         Object chatListRowIdObj = chatListId.get(0).get(0);
         Integer chatListRowId = ((Number) chatListRowIdObj).intValue();
-        log.info("parseIdFromBD(..) Конец: id записи: " + chatListRowId);
+        log.info("parseIdFromBD(..) Конец: id записи: ", chatListRowId.toString());
         return chatListRowId;
     }
     /**
@@ -126,7 +127,8 @@ public class ChatListRow {
         anoWindow.getDb().addForeignKeyForChat(this);
         anoWindow.getDb().createFunctionNotifyForNewMessage(this);
         anoWindow.getDb().createTriggerForExecuteProcedure(this);
-        log.info("createNewTableForChatAndConfigure() Конец - в БД добавлена новая запись о диалоге, создан чат с внешним ключом, функцией и триггером.");
+        log.info("createNewTableForChatAndConfigure() Конец - в БД добавлена новая запись о диалоге,",
+                "создан чат с внешним ключом, функцией и триггером.");
     }
 
 

@@ -11,10 +11,10 @@ public class Program {
     public static void main(String[] args) {
         Path jarParentPath = getJarParentPath();
         Log log = Log.getLog(jarParentPath);
-        log.info(System.lineSeparator() + ".........................................." +
-                 System.lineSeparator() + "||||||||||| ПРОГРАММА ЗАПУЩЕНА |||||||||||" +
-                 System.lineSeparator() + "''''''''''''''''''''''''''''''''''''''''''");
-        log.info("Путь к каталогу с jar-файлом и логами: " + jarParentPath);
+        log.info(System.lineSeparator(), "..........................................",
+                 System.lineSeparator(), "||||||||||| ПРОГРАММА ЗАПУЩЕНА |||||||||||",
+                 System.lineSeparator(), "''''''''''''''''''''''''''''''''''''''''''");
+        log.info("Путь к каталогу с jar-файлом и логами: ", jarParentPath.toString());
 
         new AnoWindow(log);
     }
@@ -52,6 +52,8 @@ public class Program {
 // 1. Перепроверить модификаторы
 // 2. При new Dimension(x, y) можно указать 0
 // 3. В логах в DB вероятно лучше дублировать получившийся текст запроса в лог
-// 4. В логах сделать прием текстовых аргументов через запятую, а внутри использовать StringBuilder
+// 4. Сделать запись логов в файл асинхронной
 // 5. Для работы на другом компьютере надо указать откуда брать данные для подключения к БД (где json)
+// 6. Создать абстрактный класс с готовыми реализациями методов преобразования типов
 // . Разметка
+

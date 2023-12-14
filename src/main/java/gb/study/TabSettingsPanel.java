@@ -140,4 +140,22 @@ public class TabSettingsPanel extends JPanel {
             log.info("Обработчик кнопки logingButton Конец");
         }
     };
+
+    /**
+     * Распознает число, введенное в поле количества последних загружаемых сообщений
+     * @return значение (если возникли исключения, то значение по умолчанию)
+     */
+    protected Integer parseCountMessagesForDownload(){
+        log.info("parseCountMesForDownload() Начало");
+        Integer countMesForDownload = 20;
+        try {
+            countMesForDownload = Integer.parseInt(this.countMesForDownValueTextArea.getText());
+        }catch (NullPointerException | NumberFormatException e){
+            log.warning("В поле с количеством загружаемых сообщений некорректное значение.",
+                    e.getMessage(),
+                    "Будет установление значение по умолчанию.");
+        }
+        log.info("parseCountMesForDownload() Конец - countMesForDownload =", countMesForDownload.toString());
+        return countMesForDownload;
+    }
 }

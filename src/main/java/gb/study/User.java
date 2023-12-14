@@ -163,7 +163,7 @@ public class User {
     private ArrayList<ArrayList<Object>> getChatListRowsFromDB(User user) {
         log.info("getIdFromDB() Начало");
         ArrayList<ArrayList<Object>> chatListRowsFromDB = anoWindow.getDb().selectAllChatListRowWhereId(user);
-        log.info("getIdFromDB() Конец - собеседники есть? " + (chatListRowsFromDB!=null));
+        log.info("getIdFromDB() Конец - собеседники есть? ", ((Boolean)(chatListRowsFromDB!=null)).toString());
         return chatListRowsFromDB;
     }
     /**
@@ -182,13 +182,14 @@ public class User {
                 idUser2 = (chatListWhereId.get(2) != null) ? ((Number) chatListWhereId.get(2)).intValue() : null;
                 comment = (chatListWhereId.get(4) != null) ? chatListWhereId.get(4).toString() : null;
             }catch (IndexOutOfBoundsException e){
-                log.problem("Ячейки строки chatList не распознаны при выгрузке из БД - массив пуст" + anoWindow.lSep + e.getMessage());
+                log.problem("Ячейки строки chatList не распознаны при выгрузке из БД - массив пуст", anoWindow.lSep, e.getMessage());
                 e.printStackTrace();
             }
             ChatListRow chatListRow = new ChatListRow(idUser1, idUser2, comment, anoWindow);
             Integer disputerId = calculateDisputerId(chatListRow);
             disputerIdsAndChatListRows.put(disputerId, chatListRow);
-            log.info("В словарь ''id собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником с id=" + disputerId + " и tableName=" + chatListRow.getTableName());
+            log.info("В словарь ''id собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником",
+                    "с id =", disputerId.toString(), " и tableName =", chatListRow.getTableName());
         }
         log.info("parseDisputerIdsAndChatListRows() Конец - парс словаря ''id собеседника -> запись о диалоге''");
     }
@@ -200,16 +201,16 @@ public class User {
      */
     private ArrayList<ArrayList<Object>> getIdsAndLoginsFromDB(ArrayList<Integer> disputerIds) {
         log.info("getIdsAndLoginsFromDB(..) Начало");
-        ArrayList<ArrayList<Object>> IdsAndLoginsFromDB = anoWindow.getDb().selectIdsAndLoginsForIds(disputerIds);
-        log.info("getIdsAndLoginsFromDB(..) Конец - собеседники есть? " + (IdsAndLoginsFromDB!=null));
-        return IdsAndLoginsFromDB;
+        ArrayList<ArrayList<Object>> idsAndLoginsFromDB = anoWindow.getDb().selectIdsAndLoginsForIds(disputerIds);
+        log.info("getIdsAndLoginsFromDB(..) Конец - собеседники есть? ", ((Boolean)(idsAndLoginsFromDB!=null)).toString());
+        return idsAndLoginsFromDB;
     }
     /**
      * Получает словарь ''login собеседников -> запись о диалогах'', в которых состоит пользователь user,
      * обработав результаты запроса к таблице пользователей из БД и приведя их к нужному типу
      */
     private void parseDisputerLoginsAndChatListRows(ArrayList<ArrayList<Object>> disputerIdsAndLoginsFromDB) {
-        log.info("parseDisputerLoginsAndChatListRows(..) Начало - парс словаря ''login собеседника -> запись о диалоге''\");");
+        log.info("parseDisputerLoginsAndChatListRows(..) Начало - парс словаря ''login собеседника -> запись о диалоге''");
         if(disputerIdsAndLoginsFromDB == null) return;
         for (var disputerIdAndLogin : disputerIdsAndLoginsFromDB) {
             String disputerLogin = (disputerIdAndLogin.get(1) != null) ? disputerIdAndLogin.get(1).toString() : null;
@@ -219,7 +220,8 @@ public class User {
                     disputerLogin,
                     disputerChatListRow
             );
-            log.info("В словарь ''login собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником с disputerLogin = " + disputerLogin + " и disputerId = " + disputerId);
+            log.info("В словарь ''login собеседника -> запись о диалоге'' добавлена запись о диалоге с собеседником",
+                    "с disputerLogin = ", disputerLogin, " и disputerId = ", disputerId.toString());
         }
         log.info("parseDisputerLoginsAndChatListRows(..) Конец - парс словаря ''login собеседника -> запись о диалоге''");
     }
@@ -241,7 +243,8 @@ public class User {
             ChatListRow chatListRow = disputerIdAndChatListRow.getValue();
             Chat chat = new Chat(chatListRow.getTableName(), anoWindow);
             chats.put(disputerId, chat);
-            log.info("В словарь ''id собеседника -> чат для пользователя'' добавлен чат с disputerId = " + disputerId + " и chat.getTableName() = " + chat.getTableName());
+            log.info("В словарь ''id собеседника -> чат для пользователя'' добавлен чат",
+                    "с disputerId = ", disputerId.toString(), " и chat.getTableName() = ", chat.getTableName());
         }
         log.info("parseChats() Конец - парс словаря ''id собеседника -> чат для пользователя''");
     }
@@ -292,20 +295,28 @@ public class User {
     }
 
     /**
-     * Для нажатого компонента loginTextArea проверить была ли смена чатЛиста.
-     * В любом случае вне зависимости от результата сравнения, обновляет активный чатЛист юзера
-     * @param loginTextArea компонент, получивший клик
-     * @return результат сравнения
+     * Для нажатого компонента chatListRowClick проверить была ли смена активного чатЛиста.
+     * Вне зависимости от результата сравнения, обновляет активный чатЛист юзера
+     * @param chatListRowClick компонент, получивший клик
+     * @return результат сравнения: true, если поменялся
      */
-    public Boolean isChangeActiveChatListRow(JTextArea loginTextArea) {
-        //todo надо переопределить метод equals у ChatListRow
-        Boolean isChangeActiveChat = true;  //предполагаем, что всё впервые, т.е. this.activeChatListRow == null
-        if (this.activeChatListRow != null)
-            isChangeActiveChat = disputerLoginsAndChatListRows.get(loginTextArea.getText()).getId() != activeChatListRow.getId();
-        // сравнение id от сhatListRow, полученного из login и id от activeChatListRow
-        // если они не равны, значит была смена чата
-        // при любом раскладе обновляем активный чатлист
-        this.activeChatListRow = disputerLoginsAndChatListRows.get(loginTextArea.getText());
+    public Boolean isChangeActiveChatListRow(ChatListRow chatListRowClick) {
+        log.info("isChangeActiveChatListRow(..) Начало");
+        Boolean isChangeActiveChat = true;
+        if (this.activeChatListRow == null) {
+            log.warning("На этом месте this.activeChatListRow == null => вероятно первый клик по ChatListRow");
+        }
+        if (chatListRowClick.getId() == null){
+            log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
+                    "ChatListRow, по которому кликнули не имеет id.");
+        }
+        if (this.activeChatListRow != null) {
+            isChangeActiveChat = chatListRowClick.getId() != activeChatListRow.getId();
+            log.warning("Поменялся ли активный чат?", isChangeActiveChat.toString());
+        }
+        this.activeChatListRow = chatListRowClick;
+        log.info("isChangeActiveChatListRow(..) Конец - на данный момент активный чатЛист:",
+                "№", this.activeChatListRow.getId().toString(), "-", this.activeChatListRow.getTableName());
         return isChangeActiveChat;
     }
 
