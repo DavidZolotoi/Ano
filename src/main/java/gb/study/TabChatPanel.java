@@ -172,7 +172,7 @@ public class TabChatPanel extends JPanel {
 
     /**
      * Обновляет панель со всеми логинами в соответствии с хранилищами пользователя
-     * (Добавляет чат и вешает на него обработчик)
+     * (Добавляет чат с логином и вешает на него обработчик)
      */
     protected void updateDisputerLoginsPanel(){
         log.info("updateDisputerLoginsPanel() Начало");
@@ -236,9 +236,9 @@ public class TabChatPanel extends JPanel {
             public void mouseReleased(MouseEvent e) {
                 log.info("loginTextArea.addMouseListener(..) Начало");
                 String disputerLogin = loginTextArea.getText();
-                if (    //todo переделать - это неправильное сообщение
+                if (
                     user.getDisputerLoginsAndChatListRows() == null ||
-                    user.getDisputerLoginsAndChatListRows().containsKey(disputerLogin)
+                    !user.getDisputerLoginsAndChatListRows().containsKey(disputerLogin)
                 ){
                     log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                             "Отсутствует словарь ''login->chatlist'' или логин (по которому кликнули) в этом словаре пользователя.");
@@ -246,7 +246,7 @@ public class TabChatPanel extends JPanel {
                 ChatListRow chatListRowClick = user.getDisputerLoginsAndChatListRows().get(disputerLogin);
                 Integer disputerId = user.calculateDisputerId(chatListRowClick);
                 if (!user.isChangeActiveChatListRow(chatListRowClick)) return;
-                if ( user.getChats() == null || user.getChats().containsKey(disputerId) ){
+                if ( user.getChats() == null || !user.getChats().containsKey(disputerId) ){
                     log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                             "Отсутствует словарь ''id->chat'' или id (по которому кликнули) в этом словаре пользователя.");
                 }
@@ -255,6 +255,7 @@ public class TabChatPanel extends JPanel {
                         anoWindow.tabSettingsPanel.parseCountMessagesForDownload(),
                         anoWindow
                 );
+                addAndShowMessagesFromList(new ArrayList<>(user.getChats().get(disputerId).getMessages().values()));
                 log.info("loginTextArea.addMouseListener(..) Конец - описание обработчика-метода в аргументе");
             }
         });
@@ -262,30 +263,31 @@ public class TabChatPanel extends JPanel {
     }
 
     /**
-     * Добавление нового сообщения на свое место в историю сообщений.
-     * Вызывается в методе чата после загрузки сообщений.
+     * Добавление нового сообщения в историю сообщений.
      * @param message сообщение, которое нужно добавить
      */
     protected void addAndShowNewMessage(Message message) {
-            JTextArea messageTextArea = new JTextArea(message.show());
-            messageTextArea.setEditable(false);
-            messageTextArea.setLineWrap(true);
-            messageTextArea.setWrapStyleWord(true);
-            // отступы
-            int marginLeftRightBig = (int)(anoWindow.getWidth()*0.25);
-            int marginLeftRightSmall = (int)(anoWindow.getWidth()*0.01);
-            int marginLeft = marginLeftRightBig;        // если сообщение от автора
-            int marginRight = marginLeftRightSmall;
-            if (message.isMarginRight) {                // если сообщение от собеседника
-                marginLeft = marginLeftRightSmall;
-                marginRight = marginLeftRightBig;
-            }
-            messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
-            // добавление сообщения в историю переписки
-            messageHistoryPanel.add(messageTextArea);
-            anoWindow.revalidate();  // Пересчитать компоновку
-            anoWindow.repaint();     // Перерисовать
-            //todo добавить прокрутку колесиком вниз истории сообщений
+        log.info("addAndShowNewMessage(..) Начало");
+        JTextArea messageTextArea = new JTextArea(message.show());
+        messageTextArea.setEditable(false);
+        messageTextArea.setLineWrap(true);
+        messageTextArea.setWrapStyleWord(true);
+
+        int marginLeftRightBig = (int)(anoWindow.getWidth()*0.25);
+        int marginLeftRightSmall = (int)(anoWindow.getWidth()*0.01);
+        int marginLeft = marginLeftRightBig;        // если сообщение от автора
+        int marginRight = marginLeftRightSmall;     // иначе
+        if (message.isMarginRight) {
+            marginLeft = marginLeftRightSmall;
+            marginRight = marginLeftRightBig;
+        }
+        messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
+
+        messageHistoryPanel.add(messageTextArea);
+        anoWindow.revalidate();
+        anoWindow.repaint();
+        //todo добавить прокрутку колесиком вниз истории сообщений
+        log.info("addAndShowNewMessage(..) Конец - сообщение добавлено на панель");
     }
     /**
      * Добавляет уже загруженные сообщения из словаря на свое место в историю сообщений.
@@ -293,6 +295,7 @@ public class TabChatPanel extends JPanel {
      * @param messages коллекция сообщений, которые необходимо добавить
      */
     protected void addAndShowMessagesFromList(ArrayList<Message> messages) {
+        log.info("addAndShowMessagesFromList(..) Начало");
         if (messages.isEmpty()) return;
         clearMessageHistoryPanel();
         for (var message : messages) {
@@ -301,6 +304,7 @@ public class TabChatPanel extends JPanel {
         //loginsPanelNotice(String loginValue);
         messageHistoryPanel.revalidate();
         messageHistoryPanel.repaint();
+        log.info("addAndShowMessagesFromList(..) Конец - сообщения добавлены и перерисованы");
     }
     //todo если делать пометку звездочкой, то и снимать ее надо при прочтении
     protected void loginsPanelNotice(String loginValue){
@@ -313,15 +317,21 @@ public class TabChatPanel extends JPanel {
     }
 
     /**
-     * Очистить историю сообщений
+     * Очистить с панели истории сообщений все элементы JTextArea
      */
     protected void clearMessageHistoryPanel(){
+        log.info("clearMessageHistoryPanel() Начало");
         Component[] components = messageHistoryPanel.getComponents();
+        if (components == null) {
+            log.warning("Панель сообщений была пуста (не имеет компонентов)");
+            return;
+        }
         for (Component component : components) {
             if (component instanceof JTextArea) {
                 messageHistoryPanel.remove(component);
             }
         }
+        log.info("clearMessageHistoryPanel() Конец - панель истории сообщений очищена");
     }
 
     /**

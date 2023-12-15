@@ -97,9 +97,12 @@ public class Message {
         anoWindow.getDb().sendNewMessage(message, chatListRow);
     }
 
+    /**
+     * Показать содержимое сообщения
+     * @return содержимое сообщения
+     */
     public String show() {
-        //при получении доступа заменить id на login
-        //return authorId + System.lineSeparator() + content;
+        log.info("show() - Начало и конец - далее return содержимого сообщения");
         return content;
     }
 }

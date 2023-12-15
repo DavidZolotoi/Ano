@@ -133,7 +133,6 @@ public class TabSettingsPanel extends JPanel {
             }
             anoWindow.setUser(user);
             log.info("Пользователь проверен и создан, словари загружены, а сообщения - нет.");
-            // 1. Добавить все disputerTextArea и повесить на них обработчики
             anoWindow.tabChatPanel.updateDisputerLoginsPanel();
             // 2. Запустить все прослушивания
             user.startListening();

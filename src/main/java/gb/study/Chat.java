@@ -60,12 +60,12 @@ public class Chat {
 
         for (var messageRow : lastMessagesFromDB) {
             if (messageRow == null) continue;
-            //todo вероятно здесь и в остальных местах для таких случаев нужно использовать интерфейс парсера-конвертера
+            //todo вероятно здесь и в остальных местах обработки результатов нужно использовать интерфейс парсера-конвертера
             // но проверка на null вероятно должна здесь остаться
             Integer messageId = (messageRow.get(0) != null) ? ((Number) messageRow.get(0)).intValue() : null;
             if (messages.containsKey(messageId)){
-                continue;   // сохранять только то, чего нет в словаре
-            }               // Проверка не лишняя, потому что создание сообщения ниже может содержать запрос в БД
+                continue;   //если сообщение уже есть, то не надо создавать новое сообщение
+            }
             Integer messageAuthorId = (messageRow.get(1) != null) ? ((Number) messageRow.get(1)).intValue() : null;
             String messageContent = (messageRow.get(2) != null) ? messageRow.get(2).toString() : null;
             Timestamp messageDatetime = (messageRow.get(3) != null) ? (Timestamp) messageRow.get(3) : null;
@@ -75,13 +75,6 @@ public class Chat {
             log.info("В словарь ''id -> Message'' добавлено сообщение",
                     "с id =", newMessage.getId().toString());
         }
-
-        // 2. Добавить сообщения на экран
-        // todo может быть стоит ограничить по количеству или вынести в асинхронный метод (если много)
-        if (chatListRow.getId() == anoWindow.getUser().getActiveChatListRow().getId()){
-            anoWindow.tabChatPanel.addAndShowMessagesFromList(new ArrayList<>(messages.values()));
-        }
-
         log.info("parseLastMessages(..) Начало - парс словаря сообщений ''id -> Message''");
     }
 }

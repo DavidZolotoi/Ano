@@ -467,10 +467,15 @@ public class DB {
                     Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRow);
                     // Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
                     // в словарь добавляются только сообщения, которые еще не скачаны
+                    //todo вероятно у User надо создать метод chatUpdate(Chat chat) для следующих двух действий (исп. в 2 местах)
                     anoWindow.getUser().getChats().get(idDisputer).parseLastMessages(
                             chatListRow,
                             Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
                             anoWindow
+                    );
+                    //todo сделать проверку "есть ли новые сообщения?", прежде запускать следующий метод
+                    anoWindow.tabChatPanel.addAndShowMessagesFromList(
+                            new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
                     audioNotification();
                 }
