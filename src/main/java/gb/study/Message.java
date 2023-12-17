@@ -37,7 +37,7 @@ public class Message {
     public boolean isMarginRight;   //todo заменить на приват
 
     /**
-     * Конструктор сообщения
+     * Конструктор сообщения - id уже есть (после загрузки)
      * @param id сообщения
      * @param authorId id автора
      * @param content содержимое сообщения
@@ -56,18 +56,18 @@ public class Message {
         // ведь мало ли как в будущем изменится код. Лишняя проверка - не лишняя
         this.anoWindow = (AnoWindow)window;
         this.log = this.anoWindow.log;
-        log.info("Message(..) Начало");
+        log.info("Message(..) Начало (при скачивании сообщений)");
         this.id = id;
         this.authorId = authorId;
         this.content = content;
         this.datetime = datetime; //Timestamp.from(Instant.now());
         this.comment = comment;
         this.isMarginRight = !authorId.equals(anoWindow.getUser().getId());
-        log.info("Message(..) Конец - сообщение создано");
+        log.info("Message(..) Конец (при скачивании сообщений) - сообщение создано");
     }
 
     /**
-     * Конструктор отправки нового сообщения
+     * Конструктор сообщения - id еще нет - отправка
      * @param authorId id автора
      * @param content содержимое сообщения
      * @param comment комментарий к сообщению
@@ -79,22 +79,30 @@ public class Message {
             String content,
             String comment,
             ChatListRow chatListRow,
-            AnoWindow anoWindow
+            JFrame window
     ){
+        this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
+        log.info("Message(..) Начало (при отправлении сообщений)");
         this.authorId = authorId;
         this.content = content;
         this.datetime = Timestamp.from(Instant.now());
         this.comment = comment;
         this.isMarginRight = !authorId.equals(anoWindow.getUser().getId());
-        // отправить сообщение в БД
         sendToDB(this, chatListRow, anoWindow);
+        log.info("Message(..) Конец (при отправлении сообщений) - сообщение создано");
     }
 
+    /**
+     * Метод, отправляющий новое сообщение в БД
+     * @param message сообщение без id для отправки
+     * @param chatListRow запись о диалоге, к которой относится сообщение
+     * @param anoWindow главное окно
+     */
     private void sendToDB(Message message, ChatListRow chatListRow, AnoWindow anoWindow) {
-        // 1. Отправить новое сообщение в БД => присвоится id
-        // 2. => сработает прослушивание и скачаются данные сообщения, в том числе и id
-        // Т.е. здесь специально качать из базы id не нужно
+        log.info("sendToDB(..) Начало");
         anoWindow.getDb().sendNewMessage(message, chatListRow);
+        log.info("sendToDB(..) Конец - сообщение отправлено в БД");
     }
 
     /**

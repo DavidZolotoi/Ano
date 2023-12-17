@@ -75,6 +75,6 @@ public class Chat {
             log.info("В словарь ''id -> Message'' добавлено сообщение",
                     "с id =", newMessage.getId().toString());
         }
-        log.info("parseLastMessages(..) Начало - парс словаря сообщений ''id -> Message''");
+        log.info("parseLastMessages(..) Конец - парс словаря сообщений ''id -> Message''");
     }
 }

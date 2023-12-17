@@ -34,16 +34,16 @@ public class ChatListRow {
     }
 
     enum NAME {SCHEMA, TABLE, TRIGGER, FUNCTION, NOTIFY}
-    private LinkedHashMap<NAME, String> nameFromDB;
-    public LinkedHashMap<NAME, String> getNameFromDB() {
-        return nameFromDB;
+    private LinkedHashMap<NAME, String> namesFromDB;
+    public LinkedHashMap<NAME, String> getNamesFromDB() {
+        return namesFromDB;
     }
 
     public ChatListRow() {}
 
     /**
      * Создает объект записи о диалоге ChatListRow, выгрузив его характеристики из БД.
-     * Если в БД такой строки нет, то создает её.
+     * Если в БД такой строки нет, то создает её и настраивает.
      * @param idUser1 id одного пользователя (неважно какого: большего или меньшего)
      * @param idUser2 id другого пользователя (неважно какого: большего или меньшего)
      * @param comment комментарий к записи о диалоге
@@ -55,10 +55,9 @@ public class ChatListRow {
         log.info("ChatListRow(..) Начало");
         this.userIdMin = Integer.min(idUser1, idUser2);
         this.userIdMax = Integer.max(idUser1, idUser2);
-        this.nameFromDB = createMapNamesForChatListRow(this.userIdMin, this.userIdMax);
-        this.tableName = this.nameFromDB.get(NAME.TABLE);
+        this.namesFromDB = createMapNamesForChatListRow(this.userIdMin, this.userIdMax);
+        this.tableName = this.namesFromDB.get(NAME.TABLE);
         this.comment = comment;
-        // получить из БД присвоенный id, добавив данные в БД, если их там нет
         this.id = parseIdFromBD(getIdFromDB());
         log.info("ChatListRow(..) Конец - запись о диалоге создана");
     }
@@ -90,6 +89,7 @@ public class ChatListRow {
         ArrayList<ArrayList<Object>> idForChatListRow = anoWindow.getDb().selectIdForChatListRow(this);
         log.info("getIdFromDB() Конец - присвоен ли id",
                 "для записи о диалоге ", this.tableName, "? ", ((Boolean)(idForChatListRow!=null)).toString());
+        //if((Boolean)(idForChatListRow!=null)) System.out.println(((Number) idForChatListRow.get(0).get(0)).intValue());//todo удалить
         return idForChatListRow;
     }
     /**
@@ -123,6 +123,7 @@ public class ChatListRow {
     public void createNewTableForChatAndConfigure(){
         log.info("createNewTableForChatAndConfigure() Начало");
         anoWindow.getDb().insertNewChatListRow(this);
+
         anoWindow.getDb().createNewTableForChat(this);
         anoWindow.getDb().addForeignKeyForChat(this);
         anoWindow.getDb().createFunctionNotifyForNewMessage(this);
@@ -131,5 +132,13 @@ public class ChatListRow {
                 "создан чат с внешним ключом, функцией и триггером.");
     }
 
-
+    /**
+     * Если у двух ChatListRow одинаковые id, то они одинаковы
+     * @param obj это должен быть объект, содержащий ChatListRow
+     * @return true, если id совпадают
+     */
+    @Override
+    public boolean equals(Object obj) {
+        return ((ChatListRow)obj).getId().equals(id);
+    }
 }

@@ -142,9 +142,7 @@ public class TabChatPanel extends JPanel {
         );
 
         // Обработчики
-        // Добавление обработчика на кнопку поиска нового юзера
         searchLoginButton.addActionListener(searchLoginActionListener);
-        // Добавление обработчика на кнопку отправки
         messageSendButton.addActionListener(sendMessageActionListener);
 
         // РАЗМЕТКА
@@ -189,7 +187,7 @@ public class TabChatPanel extends JPanel {
                 "и на них повешаны обработчики");
     }
     /**
-     * Добавляет чат с новым логином и вешает на него обработчик
+     * Добавляет диалог с новым логином и вешает на него обработчик
      * @param disputerLoginAndChatListRow информация о новом чате
      */
     protected void addNewDisputerAndListener(Map.Entry<String, ChatListRow> disputerLoginAndChatListRow) {
@@ -219,12 +217,12 @@ public class TabChatPanel extends JPanel {
         loginTextArea.setLineWrap(true);
         loginTextArea.setWrapStyleWord(true);
         anoWindow.tabChatPanel.getLoginsPanel().add(loginTextArea);
-        log.info("addDisputerLoginTextArea(..) Конец");
+        log.info("addDisputerLoginTextArea(..) Конец - логин добавлен на панель");
         return loginTextArea;
     }
     /**
-     * Вешает обработчик на клик по компоненту с пользователем (чату)
-     * @param loginTextArea ссылка на компонент с логином пользователя (чат)
+     * Вешает обработчик на клик по компоненту с пользователем (диалогу)
+     * @param loginTextArea ссылка на компонент с логином пользователя (диалог)
      */
     private void loginAddMouseListener(JTextArea loginTextArea) {
         log.info("loginAddMouseListener(..) Начало");
@@ -245,7 +243,8 @@ public class TabChatPanel extends JPanel {
                 }
                 ChatListRow chatListRowClick = user.getDisputerLoginsAndChatListRows().get(disputerLogin);
                 Integer disputerId = user.calculateDisputerId(chatListRowClick);
-                if (!user.isChangeActiveChatListRow(chatListRowClick)) return;
+                if (user.isActiveChatListRow(chatListRowClick)) return;
+                user.setActiveChatListRow(chatListRowClick);
                 if ( user.getChats() == null || !user.getChats().containsKey(disputerId) ){
                     log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                             "Отсутствует словарь ''id->chat'' или id (по которому кликнули) в этом словаре пользователя.");
@@ -335,12 +334,12 @@ public class TabChatPanel extends JPanel {
     }
 
     /**
-     * Обработчик отправки письма в БД, сам запрос спрятан внутри метода
+     * Обработчик отправки письма в БД, сам запрос спрятан внутри метода.
+     * Происходит только отправка в БД, остальное делает прослушивание.
      */
     ActionListener sendMessageActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            //отправить письмо в БД активного диалога, остальное должна сделать прослушка
             Integer authorId = anoWindow.getUser().getId();
             String mesContent = messageForSendTextArea.getText();
             String mesComment = "Комментарий к сообщению ";
@@ -360,7 +359,7 @@ public class TabChatPanel extends JPanel {
     };
 
     /**
-     * Обработчик поиска пользователя
+     * Обработчик поиска пользователя для создания диалога
      */
     ActionListener searchLoginActionListener = new ActionListener() {
         @Override
@@ -371,7 +370,7 @@ public class TabChatPanel extends JPanel {
             if (idsAndLoginsForLoginSearch.isEmpty()){
                 JOptionPane.showMessageDialog(
                         null,
-                        "Пользователей, такому поисковому запросу не найдено. Уточните запрос."
+                        "Пользователей, по такому поисковому запросу не найдено. Уточните запрос."
                 );
                 return;
             }
@@ -396,7 +395,7 @@ public class TabChatPanel extends JPanel {
                 ChatListRow chatListRow = new ChatListRow(
                         anoWindow.getUser().getId(),                            //user1
                         (Integer) idsAndLoginsForLoginSearch.get(0).get(0),     //user2
-                        "",     //comment
+                        "'создано в программе'",     //comment
                         anoWindow
                 );
             }

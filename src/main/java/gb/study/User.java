@@ -206,7 +206,7 @@ public class User {
         return idsAndLoginsFromDB;
     }
     /**
-     * Получает словарь ''login собеседников -> запись о диалогах'', в которых состоит пользователь user,
+     * Дополняет словарь ''login собеседников -> запись о диалогах'', в которых состоит пользователь user,
      * обработав результаты запроса к таблице пользователей из БД и приведя их к нужному типу
      */
     private void parseDisputerLoginsAndChatListRows(ArrayList<ArrayList<Object>> disputerIdsAndLoginsFromDB) {
@@ -249,40 +249,31 @@ public class User {
         log.info("parseChats() Конец - парс словаря ''id собеседника -> чат для пользователя''");
     }
 
-    protected void addNewDisputerFromDBNotify(String[] chatListRowParts){
-        // 0. Распознать chatListRow и проигнорировать, если не наш, ведь при создании chatListRow есть запрос в БД (id по tableName)
-        Integer id = Integer.parseInt(chatListRowParts[0]);
-        Integer userIdMin = Integer.parseInt(chatListRowParts[1]);
-        Integer userIdMax = Integer.parseInt(chatListRowParts[2]);
-        String tableName = chatListRowParts[3]; //серое, потому что не нужно, потому что имя получается по формуле
-        String comment = chatListRowParts[4];
-        if (anoWindow.getUser().getId() != userIdMin && anoWindow.getUser().getId() != userIdMax){
-            return;
-        }
-        ChatListRow chatListRow = new ChatListRow(userIdMin, userIdMax, comment, anoWindow);
-        // 1. Определить id собеседника и добавить в первый словарь - без запроса в БД
+    /**
+     * По уведомлению о новой записи о диалоге с новым собеседником,
+     * обновляет все словари пользователя и добавляет новый логин на панель
+     * @param chatListRow информация о новой записи о диалоге с новым собеседником (из уведомления)
+     */
+    protected void addNewDisputerFromDBNotify(ChatListRow chatListRow){
+        log.info("addNewDisputerFromDBNotify(..) Начало");
         Integer disputerId = calculateDisputerId(chatListRow);
+        System.out.println(disputerId);
         disputerIdsAndChatListRows.put(disputerId, chatListRow);
-        // 2. Определить login собеседника и добавить во второй словарь - с запросом
-        ArrayList<Integer> disputerIds = new ArrayList<>();
-        disputerIds.add(disputerId);// коллекция для запроса в БД только из одного id, будет 1 строка ответа: id+login
-        ArrayList<ArrayList<Object>> disputerIdsAndLogins = getIdsAndLoginsFromDB(disputerIds);
-        String disputerLogin = (String) disputerIdsAndLogins.get(0).get(1);
-        disputerLoginsAndChatListRows.put(disputerLogin, chatListRow);
-        // 3. Добавить чат
+        ArrayList<Integer> disputerIds = new ArrayList<>(Arrays.asList(disputerId));
+        System.out.println(disputerIds.get(0));
+        parseDisputerLoginsAndChatListRows(getIdsAndLoginsFromDB(disputerIds));
         Chat disputerChat = new Chat(chatListRow.getTableName(), anoWindow);
         chats.put(disputerId, disputerChat);
-        // 4. Добавить компонент на экран и повесить на него обработчик
         for (var disputerLoginAndChatListRow : disputerLoginsAndChatListRows.entrySet()){
-            if(disputerLoginAndChatListRow.getKey().equals(disputerLogin)){
+            if(chatListRow.equals(disputerLoginAndChatListRow.getValue())){
+                log.info("В словарях найден логин, который надо добавить на панель, его обработчик и слушать его");
                 anoWindow.tabChatPanel.addNewDisputerAndListener(disputerLoginAndChatListRow);
-                // Запустить асинхронное прослушивание коллекции каналов из одного канала:
-                var chatListRows = new ArrayList<ChatListRow>();
-                chatListRows.add(chatListRow);
+                var chatListRows = new ArrayList<ChatListRow>(Arrays.asList(chatListRow));
                 CompletableFuture<Void> futureNewListenerNewMessage = listenerNewMessageAsync(chatListRows);
                 break;
             }
         }
+        log.info("addNewDisputerFromDBNotify(..) Конец");
     }
 
     /**
@@ -295,41 +286,37 @@ public class User {
     }
 
     /**
-     * Для нажатого компонента chatListRowClick проверить была ли смена активного чатЛиста.
-     * Вне зависимости от результата сравнения, обновляет активный чатЛист юзера
-     * @param chatListRowClick компонент, получивший клик
-     * @return результат сравнения: true, если поменялся
+     * Для компонента chatListRow проверить является ли он активным.
+     * @param chatListRow компонент, для проверки
+     * @return результат сравнения: true, если является
      */
-    public Boolean isChangeActiveChatListRow(ChatListRow chatListRowClick) {
+    public Boolean isActiveChatListRow(ChatListRow chatListRow) {
         log.info("isChangeActiveChatListRow(..) Начало");
-        Boolean isChangeActiveChat = true;
-        if (this.activeChatListRow == null) {
-            log.warning("На этом месте this.activeChatListRow == null => вероятно первый клик по ChatListRow");
-        }
-        if (chatListRowClick.getId() == null){
+        if (chatListRow.getId() == null){
             log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                     "ChatListRow, по которому кликнули не имеет id.");
         }
-        if (this.activeChatListRow != null) {
-            isChangeActiveChat = chatListRowClick.getId() != activeChatListRow.getId();
-            log.warning("Поменялся ли активный чат?", isChangeActiveChat.toString());
+        Boolean isChangeActiveChat = false;
+        if (this.activeChatListRow == null) {
+            log.warning("На этом месте this.activeChatListRow == null => вероятно активность впервые");
+            return isChangeActiveChat;
         }
-        this.activeChatListRow = chatListRowClick;
-        log.info("isChangeActiveChatListRow(..) Конец - на данный момент активный чатЛист:",
-                "№", this.activeChatListRow.getId().toString(), "-", this.activeChatListRow.getTableName());
+        isChangeActiveChat = chatListRow.getId() == activeChatListRow.getId();
+        log.warning("Является ли ChatListRow активным?", isChangeActiveChat.toString());
+        log.info("isChangeActiveChatListRow(..) Конец - выяснили, что было в активном чате до.");
         return isChangeActiveChat;
     }
 
     /**
-     * Запустить все прослушивания (как новых чатов, так и сообщений)
+     * Запустить все прослушивания (как новых сообщений, так и новых чатов)
      */
     public void startListening() {
-        // 1. Запустить асинхронное прослушивание этих каналов:
+        log.info("startListening() Начало");
         CompletableFuture<Void> futureListenerNewMessage =
                 listenerNewMessageAsync(    new ArrayList<>(disputerLoginsAndChatListRows.values())    );
-        // 2. Запуск асинхронное прослушивание нового чата с неизвестным
         CompletableFuture<Void> futureListenerNewDisputer =
                 listenerNewDisputerAsync(    new ArrayList<>(disputerLoginsAndChatListRows.values())    );
+        log.info("startListening() Конец - прослушивания уведомлений о добавлении новой записи о диалоге и сообщений запущены");
     }
     /**
      * Асинхронный метод прослушивания уведомлений о новых сообщениях
@@ -338,8 +325,9 @@ public class User {
      */
     private CompletableFuture<Void> listenerNewMessageAsync(ArrayList<ChatListRow> chatListRows) {
         return CompletableFuture.runAsync(() -> {
-            System.out.println("Прослушивание уведомлений о новых сообщениях запущено.");
+            log.info("CompletableFuture.runAsync(() -> {..} - Начало");
             anoWindow.getDb().startListenerNewMessage(chatListRows);
+            log.info("CompletableFuture.runAsync(() -> {..} - Конец - асинхронное прослушивание уведомлений о новых сообщениях запущено.");
         });
     }
     /**
@@ -349,9 +337,35 @@ public class User {
      */
     private CompletableFuture<Void> listenerNewDisputerAsync(ArrayList<ChatListRow> chatListRows) {
         return CompletableFuture.runAsync(() -> {
-            System.out.println("Прослушивание уведомлений о добавлении новой записи о диалоге запущено.");
+            log.info("CompletableFuture.runAsync(() -> {..} - Начало");
             anoWindow.getDb().startListenerNewChatListRow();
+            log.info("CompletableFuture.runAsync(() -> {..} - Конец - асинхронное прослушивание уведомлений о добавлении новой записи о диалоге запущено.");
         });
+    }
+
+    /**
+     * Вернет запись о диалоге по названию таблицы
+     * @param tableName названию таблицы, по которой необходимо найти запись о диалоге
+     * @return запись о диалоге
+     */
+    protected ChatListRow getChatListRowByTableName(String tableName){
+        log.info("getChatListRowByTableName(..) Начало");
+        ChatListRow chatListRow = new ChatListRow();
+        for (var chatListRowItem : anoWindow.getUser().getDisputerIdsAndChatListRows().values()) {
+            if (chatListRowItem.getTableName().equals(tableName)) {
+                chatListRow = chatListRowItem;
+                log.info("getChatListRowByTableName(..) Конец - указанной таблице", tableName, "соответствует запись о диалоге с id =", chatListRow.getId().toString());
+                return chatListRow;
+            }
+        }
+        if(chatListRow == null){
+            log.problem("Не удалось распознать запись о диалоге по названию таблицы");
+        }
+        return chatListRow;
+    }
+
+    protected void chatUpdateAndShowMessages(){
+
     }
 
 
@@ -383,5 +397,23 @@ public class User {
     private ArrayList<ArrayList<Object>> getIdFromDB(String login){
         //todo надо создать другой метод, который не запрашивает пароль
         return anoWindow.getDb().selectIdLoginPasswordForUser(login);
+    }
+
+    /**
+     * Универсальный способ найти ключ по значению.
+     * Это то, чего следует избегать, потому что цикл
+     * @param map словарь для перебора
+     * @param value значение, для которого нужно найти ключ
+     * @return найденный ключ или null
+     * @param <K> тип ключа
+     * @param <V> тип значения
+     */
+    private static <K, V> K getKeyByValue(Map<K, V> map, V value) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            if (entry.getValue().equals(value)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

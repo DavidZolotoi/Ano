@@ -132,9 +132,9 @@ public class TabSettingsPanel extends JPanel {
                 log.problem(argExp.getMessage());
             }
             anoWindow.setUser(user);
+            loginStatusTextArea.setText("*");
             log.info("Пользователь проверен и создан, словари загружены, а сообщения - нет.");
             anoWindow.tabChatPanel.updateDisputerLoginsPanel();
-            // 2. Запустить все прослушивания
             user.startListening();
             log.info("Обработчик кнопки logingButton Конец");
         }

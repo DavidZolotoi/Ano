@@ -236,7 +236,7 @@ public class DB {
         String queryForSelectId =
                 "SELECT clid FROM " + DB.settings.get("table_name_for_chat_list") + " " +
                         "WHERE cltablename = '" + chatListRow.getTableName() + "'";
-        log.info("selectIdForChatListRow() Конец, далее действие в return");
+        log.info("selectIdForChatListRow() Конец, далее действие в return. Сам запрос:", queryForSelectId);
         return executeQueryReport(queryForSelectId);
     }
 
@@ -300,9 +300,10 @@ public class DB {
      */
     public void createFunctionNotifyForNewMessage(ChatListRow chatListRow) {
         log.info("createFunctionNotifyForNewMessage(..) Начало");
-        String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
-        String notifyName =  chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
+        String functionName = chatListRow.getNamesFromDB().get(ChatListRow.NAME.FUNCTION);
+        String notifyName =  chatListRow.getNamesFromDB().get(ChatListRow.NAME.NOTIFY);
         String tableName = chatListRow.getTableName(); //это не из БД - в конструкторе chatListRow присваивается nameFromDB.get(NAME.TABLE);
+        String notifyRow = "'" + tableName + "' || '|' || NEW.zyid";// + " || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment";
         String queryForCreateFunctionNotify =
                 "CREATE OR REPLACE FUNCTION " + functionName + "\n" +
                         " RETURNS trigger\n" +
@@ -310,10 +311,7 @@ public class DB {
                         "AS $function$\n" +
                         "DECLARE\n" +
                         "BEGIN\n" +
-                        "  PERFORM pg_notify(" +
-                        "'" + notifyName + "', " +
-                        "'" + tableName + "' || '|' || NEW.zyid || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment" +
-                        ");\n" +
+                        "  PERFORM pg_notify(" + "'" + notifyName + "', " + notifyRow + ");\n" +
                         "  RETURN NEW;\n" +
                         "END;\n" +
                         "$function$\n" +
@@ -331,9 +329,9 @@ public class DB {
      */
     public void createTriggerForExecuteProcedure(ChatListRow chatListRow) {
         log.info("createTriggerForExecuteProcedure(..) Начало");
-        String tableName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TABLE);
-        String triggerName = chatListRow.getNameFromDB().get(ChatListRow.NAME.TRIGGER);
-        String functionName = chatListRow.getNameFromDB().get(ChatListRow.NAME.FUNCTION);
+        String tableName = chatListRow.getNamesFromDB().get(ChatListRow.NAME.TABLE);
+        String triggerName = chatListRow.getNamesFromDB().get(ChatListRow.NAME.TRIGGER);
+        String functionName = chatListRow.getNamesFromDB().get(ChatListRow.NAME.FUNCTION);
         String queryForCreateTrigger =
                 "CREATE TRIGGER " + triggerName + " " +
                         "AFTER INSERT" + " " +
@@ -366,6 +364,7 @@ public class DB {
      */
     public ArrayList<ArrayList<Object>> selectIdsAndLoginsForIds(ArrayList<Integer> userIds) {
         log.info("selectIdsAndLoginsForIds(..) Начало");
+        if(userIds.isEmpty()) return null;
         String queryForSelectIdsAndLoginsForIdsPart1 =
                 "SELECT usid, uslogin FROM " + DB.settings.get("table_name_for_user") + " " +
                         "WHERE usid = " + userIds.get(0);
@@ -390,6 +389,7 @@ public class DB {
      * @param chatListRow запись о диалоге
      */
     public void sendNewMessage(Message message, ChatListRow chatListRow) {
+        log.info("db.sendNewMessage(..) Начало");
         String queryForInsertNewMessage =
                 "INSERT INTO " + chatListRow.getTableName() + " (" +
                         "zyauthorid, " +
@@ -405,75 +405,74 @@ public class DB {
                         ");";
         try {
             stmtForSend.execute(queryForInsertNewMessage);
+        } catch (SQLTimeoutException e) {
+            log.problem("Истекло время ожидания при общении с БД." + e.getMessage());
         } catch (SQLException e) {
-            System.out.println(
-                    "НЕ ВЫПОЛНЕНО: Проблема с stmtForSend.execute(insertQuery): \n" + e.getMessage() +
-                            "\nВот код запроса:\n" + queryForInsertNewMessage
-            );
+            log.problem("Ошибка доступа к БД." + e.getMessage());
         }
+        log.info("db.sendNewMessage(..) Конец - сообщение отправлено в БД");
     }
 
     /**
      * Прослушивание уведомлений о новых сообщениях в диалогах
-     * @param chatListRows коллекция всех записей о диалогах
+     * @param chatListRows коллекция всех записей о диалогах.
+     *                     Из них получаются наименования уведомлений, попадающих в запрос.
      */
     public void startListenerNewMessage(ArrayList<ChatListRow> chatListRows) {
-        System.out.println("--- DB метод прослушки новых сообщений");
-        // Суммарный запрос для прослушки, состоящий из нескольких Listen notify...;...
+        log.info("db.startListenerNewMessage(..) - Начло. Записи о конце не будет,",
+                "если есть что слушать (записи о диалоге с пользователем),",
+                "потому в бесконечном цикле в асинхронном методе запускается прослушивание сообщений");
+        if(chatListRows.isEmpty()) {
+            log.warning("db.startListenerNewMessage(..) - Конец - слушать нечего, видимо нет ни одного заведенного диалога");
+            return;
+        }
         StringBuilder queriesForListenNotify = new StringBuilder();
         for (var chatListRow : chatListRows) {
-            String notifyName = chatListRow.getNameFromDB().get(ChatListRow.NAME.NOTIFY);
+            String notifyName = chatListRow.getNamesFromDB().get(ChatListRow.NAME.NOTIFY);
             queriesForListenNotify.append("LISTEN ").append(notifyName).append("; ");
         }
-
-        // Выполнение запросов прослушки
         try {
             stmtForListen.execute(queriesForListenNotify.toString());
+            log.info("Выполнен запрос в БД для прослушивания новых сообщений:", queriesForListenNotify.toString());
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: для прослушивания сообщений `stmtForListen.execute(queriesForListenNotify.toString());`");
+            log.problem("Возникла проблема с выполнением запроса в БД для прослушивания уведомлений о новых сообщениях",
+                    e.getMessage());
         }
 
-        //Приём уведомлений от всех каналов при данном подключении
         PGConnection pgConnForListen = (PGConnection)connForListen;
         while (true) {
             PGNotification[] newMessageNotifications = new PGNotification[0];
             try {
                 newMessageNotifications = pgConnForListen.getNotifications();
             } catch (SQLException e) {
-                System.out.println("НЕ ВЫПОЛНЕНО: `newMessageNotifications = pgConnForListen.getNotifications();`");
+                log.problem("Возникла проблема с пойманным уведомлением о новом сообщении:",
+                        "newMessageNotifications = pgConnForListen.getNotifications();", e.getMessage());
                 throw new RuntimeException(e);
             }
             if (newMessageNotifications != null) {
                 for (PGNotification newMessageNotification : newMessageNotifications) {
                     String[] parts = newMessageNotification.getParameter().split("\\|");
                     String tableName = parts[0];
-                    System.out.println("***Уведомление о новом сообщении в " + tableName);
-                    //todo по ходу нужно только название таблицы??? Тогда и структуру уведомления можно сократить
-                    Integer id = Integer.parseInt(parts[1]);
-                    Integer authorId = Integer.parseInt(parts[2]);
-                    String content = parts[3];
-                    Timestamp datetime =  Timestamp.valueOf(parts[4]);
-                    String comment = parts[5];
-                    // Определение записи о диалоге собеседника по наименованию таблицы, полученной из БД:
-                    ChatListRow chatListRow = new ChatListRow();
-                    for (var chatListRowItem : anoWindow.getUser().getDisputerIdsAndChatListRows().values()) {
-                        System.out.println("Проверка: " + chatListRowItem.getTableName() + "и" + tableName);
-                        if (chatListRowItem.getTableName().equals(tableName)) {
-                            chatListRow = chatListRowItem;
-                            System.out.println("***ЧатЛист № " + chatListRowItem.getId());
-                            break;
-                        }
-                    }
+                    log.info("Уведомление о новом сообщении - новой записи в tableName = parts[0] = ", tableName);
+                    //todo по ходу нужно только название таблицы?
+                    //Integer id = Integer.parseInt(parts[1]);
+                    //Integer authorId = Integer.parseInt(parts[2]);
+                    //String content = parts[3];
+                    //Timestamp datetime =  Timestamp.valueOf(parts[4]);
+                    //String comment = parts[5];
+                    ChatListRow chatListRow = anoWindow.getUser().getChatListRowByTableName(tableName);
                     Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRow);
-                    // Загрузка последних сообщений из БД в хранилище (конкретный чат из словаря) юзера
-                    // в словарь добавляются только сообщения, которые еще не скачаны
-                    //todo вероятно у User надо создать метод chatUpdate(Chat chat) для следующих двух действий (исп. в 2 местах)
+                    if (!anoWindow.getUser().isActiveChatListRow(chatListRow)) return;
+                    if ( anoWindow.getUser().getChats() == null || !anoWindow.getUser().getChats().containsKey(idDisputer) ){
+                        log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
+                                "Отсутствует словарь ''id->chat'' или id (по от кого сообщение) в этом словаре пользователя.");
+                    }
+                    //todo создать другой метод для загрузки не последних сообщений, а только последнего по его id
                     anoWindow.getUser().getChats().get(idDisputer).parseLastMessages(
                             chatListRow,
-                            Integer.parseInt(anoWindow.tabSettingsPanel.getCountMesForDownValueTextArea().getText()),
+                            anoWindow.tabSettingsPanel.parseCountMessagesForDownload(),
                             anoWindow
                     );
-                    //todo сделать проверку "есть ли новые сообщения?", прежде запускать следующий метод
                     anoWindow.tabChatPanel.addAndShowMessagesFromList(
                             new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
@@ -483,50 +482,71 @@ public class DB {
 
             try {
                 Thread.sleep(1005);
-            } catch (InterruptedException e) {
-                // обработка ошибок
+            } catch (InterruptedException | IllegalArgumentException e) {
+                log.problem("В методе прослушивания DB.startListenerNewMessage(..) проблема с засыпанием Thread.sleep(..)");
             }
         }
+
     }
 
     /**
-     * Прослушивание уведомлений о новых записях о диалогах
+     * Прослушивание уведомлений о новых записях о диалогах.
+     * После получения проверяет отношение User к ChatListRow проверкой двух id.
+     * Если ChatListRow относится к User, то запускает метод для настройки нового собеседника:
+     * опознание, добавление во все словари, добавление на панель + обработчик нажатия, прослушивание сообщений.
      */
     public void startListenerNewChatListRow() {
-        System.out.println("DB метод прослушки о новых записях  о диалогах");
+        log.info("db.startListenerNewChatListRow() - Начло. Записи о конце не будет,",
+                "потому в бесконечном цикле в асинхронном методе запускается прослушивание добавлений новых записей о диалогах");
         String notifyName = "ncl";
         String queryForListenNotify = "LISTEN " + notifyName + "; ";
 
-        // Выполнение запроса прослушки
         try {
             stmtForListen.execute(queryForListenNotify.toString());
+            log.info("Выполнен запрос в БД для прослушивания уведомлений о новых записях о диалогах:",
+                    queryForListenNotify.toString());
         } catch (SQLException e) {
-            System.out.println("НЕ ВЫПОЛНЕНО: для прослушивания новых логинов `stmtForListen.execute(queryForListenNotify.toString());`");
+            log.problem("Возникла проблема с выполнением запроса в БД для прослушивания уведомлений о новых записях о диалогах",
+                    e.getMessage());
         }
 
-        //Приём уведомлений о всех новых диалогах при данном подключении
         PGConnection pgConnForListen = (PGConnection)connForListen;
         while (true) {
             PGNotification[] newChatListRowNotifications = new PGNotification[0];
             try {
                 newChatListRowNotifications = pgConnForListen.getNotifications();
             } catch (SQLException e) {
-                System.out.println("НЕ ВЫПОЛНЕНО: `newChatListRowNotifications = pgConnForListen.getNotifications();`");
+                log.problem("Возникла проблема с пойманным уведомлением о новой записи о диалоге:",
+                        "newChatListRowNotifications = pgConnForListen.getNotifications();", e.getMessage());
                 throw new RuntimeException(e);
             }
             if (newChatListRowNotifications != null) {
                 for (PGNotification newChatListRowNotification : newChatListRowNotifications) {
                     String[] notifyParts = newChatListRowNotification.getParameter().split("\\|");
-                    System.out.println("***Уведомление о новой записи о диалоге с название табл. " + notifyParts[3]);
-                    anoWindow.getUser().addNewDisputerFromDBNotify(notifyParts);
+                    Integer id=0, userIdMin=0, userIdMax=0; String tableName=null, comment=null;
+                    try{
+                        id = Integer.parseInt(notifyParts[0]);
+                        userIdMin = Integer.parseInt(notifyParts[1]);
+                        userIdMax = Integer.parseInt(notifyParts[2]);
+                        tableName = notifyParts[3]; //серое, потому что не нужно, потому что имя получается по формуле
+                        comment = notifyParts[4];
+                    }catch (NumberFormatException e){
+                        log.problem("Проблема при распознавании ChatListRow,",
+                                "полученного в текстовом уведомлении о новой записи ChatListRow",
+                                "(еще не факт, что от собеседника - пока непонятно от кого)");
+                    }
+                    if (anoWindow.getUser().getId() != userIdMin && anoWindow.getUser().getId() != userIdMax) return;
+                    ChatListRow chatListRow = new ChatListRow(userIdMin, userIdMax, comment, anoWindow);
+                    log.info("Уведомление от нового собеседника с tableName:", chatListRow.getTableName());
+                    anoWindow.getUser().addNewDisputerFromDBNotify(chatListRow);
                     audioNotification();
                 }
             }
 
             try {
                 Thread.sleep(7003);
-            } catch (InterruptedException e) {
-                // обработка ошибок
+            } catch (InterruptedException | IllegalArgumentException e) {
+                log.problem("В методе прослушивания DB.startListenerNewChatListRow() проблема с засыпанием Thread.sleep(..)");
             }
         }
     }
@@ -534,14 +554,17 @@ public class DB {
     /**
      * Воспроизведение звукового уведомления
      */
-    public static void audioNotification() {
+    public void audioNotification() {
+        this.log.info("audioNotification() Начало");
         String soundFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\Ano\\src\\main\\resources\\sounds\\audioMes.wav";
         try {
             File soundFile = new File(soundFilePath);
             Clip clip = AudioSystem.getClip();
             clip.open(AudioSystem.getAudioInputStream(soundFile));
             clip.start();
+            this.log.info("audioNotification() Конец - звуковое уведомление");
         } catch (Exception e) {
+            log.warning("Проблема с воспроизведением звукового уведомления", e.getMessage().toString());
             e.printStackTrace();
         }
     }
