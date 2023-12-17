@@ -79,12 +79,17 @@ REFERENCES public.user (usid);
 INSERT INTO public.chatlist
 (cluseridmin, cluseridmax, cltablename, clcomment)
 values
-(1,5,'zz1yy5',null),
-(4,7,'zz4yy7',null),
-(3,6,'zz3yy6',null),
-(5,7,'zz5yy7',null),
-(4,5,'zz4yy5',null);
+(1,5,'public.zz1yy5',null),
+(4,7,'public.zz4yy7',null),
+(3,6,'public.zz3yy6',null),
+(5,7,'public.zz5yy7',null),
+(4,5,'public.zz4yy5',null);
 
+-- текущее заполнение
+INSERT INTO public.chatlist
+(cluseridmin, cluseridmax, cltablename, clcomment)
+values
+(2,5,'public.zz2yy5',null);
 
 -- Эта функция создаст уведомление для пользователей - это для слушателя java: String listenQuery = "LISTEN ...";
 -- и передаст в него значения всех колонок новой строки в таблице
@@ -99,7 +104,7 @@ $$ LANGUAGE plpgsql;
 -- Этот триггер вызовет функцию "fchatlist"
 -- после каждой вставки новой строки в таблицу "public.chatlist"
 --УДАЛЕНИЕ ТРИГГЕРА
--- DROP TRIGGER tchatlist ON public.chatlist;
+--DROP TRIGGER tchatlist ON public.chatlist;
 --СОЗДАНИЕ ТРИГГЕРА
 CREATE TRIGGER tchatlist
     AFTER INSERT
@@ -107,7 +112,8 @@ CREATE TRIGGER tchatlist
     FOR EACH ROW
     EXECUTE PROCEDURE public.fchatlist();
 
--- Удаление: триггер - функция - таблица
+-- Удаление: триггер - функция - таблица - из чатлиста
+
 
 -- показать все чаты, где Sergey (id=5)
 select *
@@ -127,7 +133,7 @@ select * from public.chatlist;
 
 /*--- 3. ИСТОРИЯ СООБЩЕНИЙ - ДИАЛОГ ---*/
 -- удаление таблицы
---DROP TABLE public.zz1yy5 CASCADE;
+--DROP TABLE public.zz2yy5 CASCADE;
 -- создание таблицы
 CREATE TABLE IF NOT EXISTS public.zz1yy5 (
 	zyid SERIAL PRIMARY KEY,
@@ -149,31 +155,24 @@ REFERENCES public.user (usid);							--это тоже самое, что и к�
 -- начальное заполнение
 INSERT INTO public.zz1yy5 (zyauthorid, zycontent, zydatetime, zycomment)
 VALUES
-    (1, 'Сообщение 1', '2023-11-26 12:00:01', 'Комментарий к сообщению 1'),
-    (5, 'Сообщение 2', '2023-11-26 12:00:02', 'Комментарий к сообщению 2'),
-    (5, 'Сообщение 3', '2023-11-26 12:00:03', 'Комментарий к сообщению 3'),
-    (1, 'Сообщение 4', '2023-11-26 12:00:04', 'Комментарий к сообщению 4');
+    (1, '1-5сообщ', '2023-12-16 18:54:05.5022277', 'Комментарий к сообщению'),
+    (5, '1-5сообщ', '2023-12-16 18:54:05.5022278', 'Комментарий к сообщению'),
+    (5, '1-5сообщ', '2023-12-16 18:54:05.5022279', 'Комментарий к сообщению'),
+    (1, '1-5сообщ', '2023-12-16 18:54:05.5022280', 'Комментарий к сообщению');
 -- текущее заполнение
 INSERT INTO public.zz1yy5 (zyauthorid, zycontent, zydatetime, zycomment)
 VALUES
-    (1, 'Сообщение 5', '2023-11-26 12:00:05', 'Комментарий к сообщению 5');
-INSERT INTO public.zz1yy5 (zyauthorid, zycontent, zydatetime, zycomment)
-VALUES
-    (5, 'Сообщение 6', '2023-11-26 12:00:06', 'Комментарий к сообщению 6');
-INSERT INTO public.zz1yy5 (zyauthorid, zycontent, zydatetime, zycomment)
-values
-	(5, 'Сообщение 7', '2023-12-05 01:25:47.6917193', 'Комментарий к сообщению 7');
-INSERT INTO public.zz1yy5 (zyauthorid, zycontent, zydatetime, zycomment)
-values
-	(1, 'Сообщение 8', '2023-12-05 01:25:49.6917193', 'Комментарий к сообщению 8'); 
+    (1, '1-5сообщ', '2023-12-16 20:00:00.0000000', 'Комментарий к сообщению');
 
 
 -- Эта функция создаст уведомление с именем "nzz1yy5" - это для слушателя java: String listenQuery = "LISTEN nzz1yy5";
 -- и передаст в него значения колонок (zyid, zyauthorid, zycontent, zydatetime, zycomment) новой строки в таблице
+-- Удалить функцию
+--DROP FUNCTION public.fzz2yy5() CASCADE;
 CREATE OR REPLACE FUNCTION fzz1yy5() RETURNS trigger AS $$
 DECLARE
-BEGIN
-  PERFORM pg_notify('nzz1yy5', NEW.zyid || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment);
+begin						-- ПРОВЕРИТЬ С КОДОМ
+  PERFORM pg_notify('nzz1yy5', 'zz1yy5' || '|' || NEW.zyid); 	-- || '|' || NEW.zyauthorid || '|' || NEW.zycontent || '|' || NEW.zydatetime || '|' || NEW.zycomment
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -181,7 +180,7 @@ $$ LANGUAGE plpgsql;
 -- Этот триггер вызовет функцию "fzz1yy5"
 -- после каждой вставки новой строки в таблицу "zz1yy5"
 --УДАЛЕНИЕ ТРИГГЕРА
--- DROP TRIGGER tzz1yy5 ON public.zz1yy5;
+--DROP TRIGGER tzz2yy5 ON public.zz2yy5;
 --СОЗДАНИЕ ТРИГГЕРА
 CREATE TRIGGER tzz1yy5
     AFTER INSERT
@@ -189,8 +188,15 @@ CREATE TRIGGER tzz1yy5
     FOR EACH ROW
     EXECUTE PROCEDURE public.fzz1yy5();
 
--- Удаление: триггер - функция - таблица
-      
+-- Удаление: триггер - функция - таблица - из чатлиста
+DROP TRIGGER tzz2yy5 ON public.zz2yy5;
+DROP FUNCTION public.fzz2yy5() CASCADE;
+DROP TABLE public.zz2yy5 CASCADE;
+DELETE FROM public.chatlist WHERE cltablename = 'public.zz2yy5';
+
+
+   
+   
 -- показать всё содержимое
 select * from public.zz1yy5;
 

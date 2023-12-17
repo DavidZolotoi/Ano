@@ -27,11 +27,11 @@ public class DB {
     private final AnoWindow anoWindow;
     private final Log log;
 
-    protected Connection connForSend;
-    protected Statement stmtForSend;
+    protected Connection connForListenNewChatList;
+    protected Statement stmtForListenNewChatList;
 
-    protected Connection connForListen;
-    protected Statement stmtForListen;
+    protected Connection connForListenNewMessage;
+    protected Statement stmtForListenNewMessage;
 
     public DB(JFrame window) {
         this.anoWindow = (AnoWindow)window;
@@ -41,11 +41,11 @@ public class DB {
                 "url", "user", "password", "table_name_for_user", "table_name_for_chat_list");
 
         //todo возможно стоит убрать из конструктора - надо подумать
-        connForSend = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
-        stmtForSend = createStatement(connForSend);
+        connForListenNewChatList = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
+        stmtForListenNewChatList = createStatement(connForListenNewChatList);
 
-        connForListen = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
-        stmtForListen = createStatement(connForListen);
+        connForListenNewMessage = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
+        stmtForListenNewMessage = createStatement(connForListenNewMessage);
 
         log.info("DB(JFrame window) Конец - БД создана");
     }
@@ -343,20 +343,6 @@ public class DB {
         log.info("createTriggerForExecuteProcedure(..) Конец - создан триггер для таблицы: ", chatListRow.getTableName());
     }
 
-//    /**
-//     * Метод, получающий из БД id пользователей (useridmin, useridmax)
-//     * из списка диалогов для пользователя
-//     * @param chatListRow список диалогов пользователя
-//     * @return id пользователей из списка диалогов для пользователя
-//     */
-//    public ArrayList<ArrayList<Object>> selectUserIdMinAndUserIdMax(ChatListRow chatListRow) {
-//        String queryForSelectUserIdMinAndUserIdMax =
-//                "select userid_min, userid_max" + " " +
-//                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
-//                        "where id = " + chatListRow.getId() + ";";
-//        return executeQueryReport(queryForSelectUserIdMinAndUserIdMax);
-//    }
-
     /**
      * Метод, получающий из БД id и логины пользователей по их id
      * @param userIds id пользователей
@@ -404,7 +390,7 @@ public class DB {
                         "'" + message.getComment() + "'" +
                         ");";
         try {
-            stmtForSend.execute(queryForInsertNewMessage);
+            stmtForListenNewChatList.execute(queryForInsertNewMessage);
         } catch (SQLTimeoutException e) {
             log.problem("Истекло время ожидания при общении с БД." + e.getMessage());
         } catch (SQLException e) {
@@ -432,20 +418,20 @@ public class DB {
             queriesForListenNotify.append("LISTEN ").append(notifyName).append("; ");
         }
         try {
-            stmtForListen.execute(queriesForListenNotify.toString());
+            stmtForListenNewMessage.execute(queriesForListenNotify.toString());
             log.info("Выполнен запрос в БД для прослушивания новых сообщений:", queriesForListenNotify.toString());
         } catch (SQLException e) {
             log.problem("Возникла проблема с выполнением запроса в БД для прослушивания уведомлений о новых сообщениях",
                     e.getMessage());
         }
 
-        PGConnection pgConnForListen = (PGConnection)connForListen;
+        PGConnection pgConnForListen = (PGConnection) connForListenNewMessage;
         while (true) {
             PGNotification[] newMessageNotifications = new PGNotification[0];
             try {
                 newMessageNotifications = pgConnForListen.getNotifications();
             } catch (SQLException e) {
-                log.problem("Возникла проблема с пойманным уведомлением о новом сообщении:",
+                log.problem("Возникла проблема с полученным уведомлением о новом сообщении:",
                         "newMessageNotifications = pgConnForListen.getNotifications();", e.getMessage());
                 throw new RuntimeException(e);
             }
@@ -491,18 +477,21 @@ public class DB {
 
     /**
      * Прослушивание уведомлений о новых записях о диалогах.
-     * После получения проверяет отношение User к ChatListRow проверкой двух id.
+     * После получения проверяет отношение User к ChatListRow проверкой двух id собеседников.
      * Если ChatListRow относится к User, то запускает метод для настройки нового собеседника:
      * опознание, добавление во все словари, добавление на панель + обработчик нажатия, прослушивание сообщений.
      */
     public void startListenerNewChatListRow() {
-        log.info("db.startListenerNewChatListRow() - Начло. Записи о конце не будет,",
-                "потому в бесконечном цикле в асинхронном методе запускается прослушивание добавлений новых записей о диалогах");
+        log.info("db.startListenerNewChatListRow() - Начало. Записи о конце не будет,",
+                "потому в бесконечном цикле в асинхронном методе запускается прослушивание уведомление о добавлении новых записей о диалогах");
         String notifyName = "ncl";
         String queryForListenNotify = "LISTEN " + notifyName + "; ";
 
+        connForListenNewChatList = createConnection(DB.settings.get("url"), DB.settings.get("user"), DB.settings.get("password"));
+        stmtForListenNewChatList = createStatement(connForListenNewChatList);
+
         try {
-            stmtForListen.execute(queryForListenNotify.toString());
+            stmtForListenNewChatList.execute(queryForListenNotify.toString());
             log.info("Выполнен запрос в БД для прослушивания уведомлений о новых записях о диалогах:",
                     queryForListenNotify.toString());
         } catch (SQLException e) {
@@ -510,13 +499,13 @@ public class DB {
                     e.getMessage());
         }
 
-        PGConnection pgConnForListen = (PGConnection)connForListen;
+        PGConnection pgConnForListen = (PGConnection) connForListenNewChatList;
         while (true) {
             PGNotification[] newChatListRowNotifications = new PGNotification[0];
             try {
                 newChatListRowNotifications = pgConnForListen.getNotifications();
             } catch (SQLException e) {
-                log.problem("Возникла проблема с пойманным уведомлением о новой записи о диалоге:",
+                log.problem("Возникла проблема с полученным уведомлением о новой записи о диалоге:",
                         "newChatListRowNotifications = pgConnForListen.getNotifications();", e.getMessage());
                 throw new RuntimeException(e);
             }
@@ -531,7 +520,7 @@ public class DB {
                         tableName = notifyParts[3]; //серое, потому что не нужно, потому что имя получается по формуле
                         comment = notifyParts[4];
                     }catch (NumberFormatException e){
-                        log.problem("Проблема при распознавании ChatListRow,",
+                        log.problem("Проблема при распознавании ячеек ChatListRow,",
                                 "полученного в текстовом уведомлении о новой записи ChatListRow",
                                 "(еще не факт, что от собеседника - пока непонятно от кого)");
                     }
@@ -539,7 +528,7 @@ public class DB {
                     ChatListRow chatListRow = new ChatListRow(userIdMin, userIdMax, comment, anoWindow);
                     log.info("Уведомление от нового собеседника с tableName:", chatListRow.getTableName());
                     anoWindow.getUser().addNewDisputerFromDBNotify(chatListRow);
-                    audioNotification();
+                    audioNotification(); //todo проверить автора, чтоб понять надо ли звучать
                 }
             }
 
@@ -556,6 +545,7 @@ public class DB {
      */
     public void audioNotification() {
         this.log.info("audioNotification() Начало");
+        //todo надо как-то прикрепить к программе звуковой файл
         String soundFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\Ano\\src\\main\\resources\\sounds\\audioMes.wav";
         try {
             File soundFile = new File(soundFilePath);
@@ -617,12 +607,14 @@ public class DB {
      * @return id и логины пользователей
      */
     public ArrayList<ArrayList<Object>> selectIdsAndLoginsForLoginSearch(String valueForSearch) {
-        String queryForselectIdsAndLoginsForLoginSearch =
+        log.info("selectIdsAndLoginsForLoginSearch(..) Начало");
+        String queryForSelectIdsAndLoginsForLoginSearch =
                 "select usid, uslogin\n" +
                         "from " + readJSONFile(DB.settingsFilePath, "table_name_for_user") + " \n" +
                         "where uslogin ILIKE '%" + valueForSearch + "%';";
-
-        return executeQueryReport(queryForselectIdsAndLoginsForLoginSearch);
+        log.info("selectIdsAndLoginsForLoginSearch(..) Конец - следом return. Сам запрос:",
+                queryForSelectIdsAndLoginsForLoginSearch);
+        return executeQueryReport(queryForSelectIdsAndLoginsForLoginSearch);
     }
 }
 
@@ -637,3 +629,17 @@ public class DB {
 //        } catch (SQLException e) {
 //            System.out.println("НЕ ВЫПОЛНЕНО: Проблема с загрузкой последних сообщений");
 //        }
+
+//    /**
+//     * Метод, получающий из БД id пользователей (useridmin, useridmax)
+//     * из списка диалогов для пользователя
+//     * @param chatListRow список диалогов пользователя
+//     * @return id пользователей из списка диалогов для пользователя
+//     */
+//    public ArrayList<ArrayList<Object>> selectUserIdMinAndUserIdMax(ChatListRow chatListRow) {
+//        String queryForSelectUserIdMinAndUserIdMax =
+//                "select userid_min, userid_max" + " " +
+//                        "from " + DB.settings.get("table_name_for_chat_list") + " " +
+//                        "where id = " + chatListRow.getId() + ";";
+//        return executeQueryReport(queryForSelectUserIdMinAndUserIdMax);
+//    }

@@ -68,40 +68,19 @@ public class TabSettingsPanel extends JPanel {
 
         // РАЗМЕТКА
         log.info("РАЗМЕТКА панели настроек - добавление всего созданного");
-        int rowCountLeftPanel = 10;
-        int colCountLeftPanel = 2;
-        leftPanel.setLayout(new GridLayout(rowCountLeftPanel, colCountLeftPanel));
-        int rowCountRightPanel = rowCountLeftPanel;
-        int colCountRightPanel = colCountLeftPanel;
-        rightPanel.setLayout(new GridLayout(rowCountRightPanel, colCountRightPanel));
-        // Здесь можно сделать метод добавления строк или кол-ва пустых.
-        // Работает непросто. Java заранее считает кол-во добавляемых элементов,
-        // если их кол-во не умещается в кол-во строк, то расставляет построчно слева-направо, сверху-вниз
-        add(leftPanel);
-            leftPanel.add(loginCommentTextArea);        leftPanel.add(loginValueTextArea);
-            leftPanel.add(passCommentTextArea);         leftPanel.add(passValuePasswordField);
-            leftPanel.add(logingButton);                 leftPanel.add(loginStatusTextArea);
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-            leftPanel.add(new JLabel());                leftPanel.add(new JLabel());
-//            leftPanel.add(new JButton("Login"));leftPanel.add(new JTextArea("First Name:"));
-//            leftPanel.add(new JTextArea("Last Name:"));leftPanel.add(new JTextArea("Mail:"));
-//            leftPanel.add(new JTextArea("Phone:"));leftPanel.add(new JTextArea("Comment:"));
-        add(rightPanel);
-            rightPanel.add(countMesForDownTextArea);    rightPanel.add(countMesForDownValueTextArea);
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
-            rightPanel.add(new JLabel());               rightPanel.add(new JLabel());
+        setLayout(new GridBagLayout());
+        add(leftPanel, newConstraints(4,0, 0,0, 2, 2));
+        leftPanel.setLayout(new GridBagLayout());
+            leftPanel.add(loginCommentTextArea,     newConstraints(2,0, 0,0, 1, 1));
+            leftPanel.add(loginValueTextArea,       newConstraints(2,0, 1,0, 1, 1));
+            leftPanel.add(passCommentTextArea,      newConstraints(2,0, 0,1, 1, 1));
+            leftPanel.add(passValuePasswordField,   newConstraints(2,0, 1,1, 1, 1));
+            leftPanel.add(logingButton,             newConstraints(2,0, 0,2, 1, 1));
+            leftPanel.add(loginStatusTextArea,      newConstraints(2,0, 1,2, 1, 1));
+        add(rightPanel, newConstraints(4,0, 2,0, 2, 2));
+        rightPanel.setLayout(new GridBagLayout());
+            rightPanel.add(countMesForDownTextArea,     newConstraints(2,0, 0,0, 1, 1));
+            rightPanel.add(countMesForDownValueTextArea,newConstraints(2,0, 1,0, 1, 1));
 
         // Обработчики
         logingButton.addActionListener(logingActionListener);
@@ -111,12 +90,33 @@ public class TabSettingsPanel extends JPanel {
         log.info("TabSettingsPanel(JFrame window) Конец");
     }
 
+    /**
+     * Создает и возвращает GridBagConstraints с настроенными свойствами
+     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param gx позиция по оси Х
+     * @param gy позиция по оси У
+     * @param gw количество занимаемых ячеек по оси Х
+     * @param gh количество занимаемых ячеек по оси У
+     * @return экземпляр объекта GridBagConstraints
+     */
+    public GridBagConstraints newConstraints(double wx, double wy, int gx, int gy, int gw, int gh) {
+        GridBagConstraints gridBagConstraints = new GridBagConstraints();
+        gridBagConstraints.weightx = wx;
+        gridBagConstraints.weighty = wy;
+        gridBagConstraints.gridx = gx;
+        gridBagConstraints.gridy = gy;
+        gridBagConstraints.gridwidth = gw;
+        gridBagConstraints.gridheight = gh;
+        return gridBagConstraints;
+    }
+
     // Обработчик кнопки входа в систему
     final ActionListener logingActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
             log.info("Обработчик кнопки logingButton Начало");
-            if(loginValueTextArea.getText()=="" || loginValueTextArea.getText()==null){
+            if(loginValueTextArea.getText().equals("") || loginValueTextArea.getText()==null){
                 log.problem("Не введен логин пользователя");
                 JOptionPane.showMessageDialog(null, "Не введен логин пользователя");
                 return;

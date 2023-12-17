@@ -308,7 +308,7 @@ public class User {
     }
 
     /**
-     * Запустить все прослушивания (как новых сообщений, так и новых чатов)
+     * Запустить все прослушивания (как новых сообщений, так и новых записей о диалогах)
      */
     public void startListening() {
         log.info("startListening() Начало");
@@ -364,40 +364,7 @@ public class User {
         return chatListRow;
     }
 
-    protected void chatUpdateAndShowMessages(){
 
-    }
-
-
-    /**
-     * Распознавание и приведение id, присвоенного для User автоматически в БД,
-     * загруженного из БД
-     * @return Распознанный и приведенный id
-     */
-    private Integer parseIdFromDB(ArrayList<ArrayList<Object>> userIdFromDB){
-        log.info("parseIdFromBD(..) Начало");
-        Object userIdObj = null;
-        Integer userId = null;
-        try {
-            userIdObj = userIdFromDB.get(0).get(0);
-            userId = ((Number) userIdObj).intValue();
-        } catch (IndexOutOfBoundsException e){
-            log.problem("id пользователя не распознан при выгрузке из БД - массив пуст" + anoWindow.lSep + e.getMessage());
-            e.printStackTrace();
-        }
-        log.info("parseIdFromBD(..) Конец");
-        return userId;
-    }
-    /**
-     * Метод, получающий id из таблицы user в БД.
-     * Выгрузит из БД отчет с присвоенным id.
-     * Все полученные данные - таблица Object
-     * @return id, присвоенный в БД, для user
-     */
-    private ArrayList<ArrayList<Object>> getIdFromDB(String login){
-        //todo надо создать другой метод, который не запрашивает пароль
-        return anoWindow.getDb().selectIdLoginPasswordForUser(login);
-    }
 
     /**
      * Универсальный способ найти ключ по значению.

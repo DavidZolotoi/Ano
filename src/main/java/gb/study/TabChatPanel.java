@@ -335,11 +335,12 @@ public class TabChatPanel extends JPanel {
 
     /**
      * Обработчик отправки письма в БД, сам запрос спрятан внутри метода.
-     * Происходит только отправка в БД, остальное делает прослушивание.
+     * Происходит только отправка сообщения в БД, остальное делает прослушивание у обоих собеседников.
      */
     ActionListener sendMessageActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
+            log.info("sendMessageActionListener = new ActionListener() {..} Начало");
             Integer authorId = anoWindow.getUser().getId();
             String mesContent = messageForSendTextArea.getText();
             String mesComment = "Комментарий к сообщению ";
@@ -355,50 +356,41 @@ public class TabChatPanel extends JPanel {
             messageHistoryPanel.revalidate();
             messageHistoryPanel.repaint();
             messageForSendTextArea.requestFocus();
+            log.info("sendMessageActionListener = new ActionListener() {..} Конец - обработчик отправки сообщения сработал");
         }
     };
 
     /**
-     * Обработчик поиска пользователя для создания диалога
+     * Обработчик поиска пользователя для создания новой записи о диалоге.
+     * Происходит только отправка записи в БД, остальное делает прослушивание у обоих собеседников.
      */
     ActionListener searchLoginActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            //todo при регистрации пользователя, надо в базу записывать все логины с маленькими буквами!!!
+            log.info("searchLoginActionListener = new ActionListener() {..} Начало");
             ArrayList<ArrayList<Object>> idsAndLoginsForLoginSearch =
                     anoWindow.getDb().selectIdsAndLoginsForLoginSearch(searchLoginTextArea.getText());
             if (idsAndLoginsForLoginSearch.isEmpty()){
-                JOptionPane.showMessageDialog(
-                        null,
-                        "Пользователей, по такому поисковому запросу не найдено. Уточните запрос."
-                );
+                String messageInfo = "Пользователей, по такому поисковому запросу не найдено. Уточните запрос.";
+                JOptionPane.showMessageDialog(null, messageInfo);
+                log.warning(messageInfo, "Поисковое значение:", searchLoginTextArea.getText());
                 return;
             }
             if (idsAndLoginsForLoginSearch.size() > 1){
                 StringBuilder reportSearch = new StringBuilder();
-                reportSearch
-                        .append("По такому поисковому запросу найдено много пользователей:")
-                        .append(System.lineSeparator());
+                reportSearch.append("По такому поисковому запросу найдено много пользователей:").append(anoWindow.lSep);
                 for (var loginRowObj : idsAndLoginsForLoginSearch) {
-                    reportSearch.append(loginRowObj.get(1)).append(System.lineSeparator());
+                    reportSearch.append(loginRowObj.get(1)).append(anoWindow.lSep);
                 }
+                log.warning(reportSearch.toString());
                 JOptionPane.showMessageDialog(null, reportSearch.append("Уточните запрос."));
                 return;
             }
-            //Проверку в теории можно убрать, но что-то не хочется :-)
-            if (idsAndLoginsForLoginSearch.size() == 1){
-                //  todo подумать над тем, чтоб убрать эту логику в user или растворить в user.disputersUpdate()
-                // зарегистрировать с ним новую запись о диалоге
-                // => улетит уведомление
-                // => прилетит уведомление => обработается
-                //конструктор проверит, если такой записи нет в БД, то создаст ее (min/max тоже зашито в конструктор).
-                ChatListRow chatListRow = new ChatListRow(
-                        anoWindow.getUser().getId(),                            //user1
-                        (Integer) idsAndLoginsForLoginSearch.get(0).get(0),     //user2
-                        "'создано в программе'",     //comment
-                        anoWindow
-                );
-            }
+            Integer user1 = anoWindow.getUser().getId();
+            Integer user2 = ((Number) idsAndLoginsForLoginSearch.get(0).get(0)).intValue();
+            String comment = "'создано в программе'";
+            ChatListRow chatListRow = new ChatListRow( user1, user2, comment, anoWindow );
+            log.info("searchLoginActionListener = new ActionListener() {..} Конец - обработчик кнопки открытия нового чата сработал");
         }
     };
 
