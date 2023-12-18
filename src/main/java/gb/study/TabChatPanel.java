@@ -46,40 +46,22 @@ public class TabChatPanel extends JPanel {
         this.log = this.anoWindow.log;
         //user = anoWindow.getUser(); //todo видимо надо отсюда удалить, потому юзер распознается позже
 
-        // 0. САМО ОКНО
-        setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-
         // 1. ЛЕВАЯ ПАНЕЛЬ
         leftPanel = new JPanel();
-        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
-        leftPanel.setSize(
-                new Dimension(
-                        (int)((anoWindow.getWidth()-4)*0.30),
-                        (int)((anoWindow.getHeight()-4)*0.30)
-                )
-        );
+//        leftPanel.setSize(
+//                new Dimension(
+//                        (int)((anoWindow.getWidth()-4)*0.30),
+//                        (int)((anoWindow.getHeight()-4)*0.30)
+//                )
+//        );
         // Панель поиска юзера для открытия чата с ним = поле ввода + кнопка
         searchLoginPanel = new JPanel();
-        searchLoginPanel.setLayout(new BoxLayout(searchLoginPanel, BoxLayout.Y_AXIS));
-        searchLoginPanel.setSize(
-                new Dimension(
-                        (int)((anoWindow.getWidth()-8)*0.30),
-                        0
-                )
-        );
         searchLoginTextArea = new JTextArea("введите логин собеседника");
         searchLoginTextArea.setLineWrap(true);
         searchLoginTextArea.setWrapStyleWord(true);
-        searchLoginTextArea.setSize(
-                new Dimension(
-                        (int)((anoWindow.getWidth()-10)*0.30),
-                        0
-                )
-        );
         searchLoginButton = new JButton("Открыть чат");
         // Панель со всеми логинами
         loginsPanel = new JPanel();
-        loginsPanel.setLayout(new BoxLayout(loginsPanel, BoxLayout.Y_AXIS));
         // добавить скролл
         loginsScroll = new JScrollPane();
         loginsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -89,17 +71,8 @@ public class TabChatPanel extends JPanel {
 
         // 2. ПРАВАЯ ПАНЕЛЬ
         rightPanel = new JPanel();
-        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-        rightPanel.setSize(
-                new Dimension(
-                        (int)((anoWindow.getWidth()-4)*0.70),
-                        (int)((anoWindow.getHeight()-4)*0.70)
-                )
-        );
-
         // 3. ВЕРХНИЙ элемент - история переписки - это JPanel из многих JTextArea, завернутая в JScrollPane
         messageHistoryPanel = new JPanel();
-        messageHistoryPanel.setLayout(new BoxLayout(messageHistoryPanel, BoxLayout.Y_AXIS));
         // добавить скролл
         messageHistoryScroll = new JScrollPane();
         messageHistoryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -107,67 +80,82 @@ public class TabChatPanel extends JPanel {
 
         // 4. НИЖНЯЯ панель (панель с текстовым полем, кнопками)
         bottomPanel = new JPanel();
-        bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.X_AXIS));
-        bottomPanel.setSize(
-                new Dimension(
-                        (int)(rightPanel.getWidth()-2),
-                        (int)(rightPanel.getHeight()-2)
-                )
-        );
-
-        // Содержимое нижней панели: ввода текста + 2 кнопки
         messageForSendTextArea = new JTextArea();
-        messageForSendTextArea.setSize(
-                new Dimension(
-                        (int)((bottomPanel.getWidth()-2)*0.70),
-                        (int)((bottomPanel.getHeight()-2)*0.70)
-                )
-        );
-        // Настройки для элементов
         messageForSendTextArea.setLineWrap(true);
         messageForSendTextArea.setWrapStyleWord(true);
         messageAttachButton = new JButton("V");
-        messageAttachButton.setSize(
-                new Dimension(
-                        (int)((bottomPanel.getWidth()-2)*0.10),
-                        (int)((bottomPanel.getHeight()-2)*0.10)
-                )
-        );
         messageSendButton = new JButton("Отправить");
-        messageSendButton.setSize(
-                new Dimension(
-                        (int)((bottomPanel.getWidth()-2)*0.20),
-                        (int)((bottomPanel.getHeight()-2)*0.20)
-                )
-        );
-
         // Обработчики
         searchLoginButton.addActionListener(searchLoginActionListener);
         messageSendButton.addActionListener(sendMessageActionListener);
 
         // РАЗМЕТКА
+        log.info("РАЗМЕТКА панели настроек - добавление всего созданного");
+        setLayout(new GridBagLayout());
         // ЛЕВАЯ панель
-        add(leftPanel);
-            leftPanel.add(searchLoginPanel);
-                searchLoginPanel.add(searchLoginTextArea);
-                searchLoginPanel.add(searchLoginButton);
-            leftPanel.add(loginsPanel);
+        add(leftPanel, newConstraints(11,9, 0,0, 3, 9, false, true));
+            leftPanel.setLayout(new GridBagLayout());
+            leftPanel.add(searchLoginPanel, newConstraints(3,9, 0,0, 3, 2));
+                searchLoginPanel.setLayout(new GridBagLayout());
+                searchLoginPanel.add(searchLoginTextArea,   newConstraints(3,2, 0,0, 3, 1));
+                searchLoginPanel.add(searchLoginButton,     newConstraints(3,2, 0,1, 3, 1));
+            leftPanel.add(loginsPanel,      newConstraints(3,9, 0,2, 3, 7, false, true));
+            loginsPanel.setLayout(new GridBagLayout());
 
         // ПРАВАЯ панель
-        add(rightPanel);
-            // Добавление истории сообщений
-            rightPanel.add(messageHistoryScroll);
-            // Добавить на историю сообщений сами сообщения - метод, вызывающийся по клику на чат
-            // Добавление нижней панели с инструментами для отправки письма
-            rightPanel.add(bottomPanel);
-                // Добавление поля для ввода в нижнюю панель
-                bottomPanel.add(messageForSendTextArea);
-                // Добавление кнопки для загрузки вложений в нижнюю панель
-                bottomPanel.add(messageAttachButton);
-                // Добавление кнопки для отправки письма в нижнюю панель
-                bottomPanel.add(messageSendButton);
+        add(rightPanel, newConstraints(11,9, 3,0, 8, 9, false, true));
+            rightPanel.setLayout(new GridBagLayout());
+            rightPanel.add(messageHistoryScroll,    newConstraints(8,9, 0,0, 8, 7, true, true));
+            messageHistoryPanel.setLayout(new GridBagLayout());
+            rightPanel.add(bottomPanel,             newConstraints(8,9, 0,7, 8, 2, true, false));
+                bottomPanel.setLayout(new GridBagLayout());
+                bottomPanel.add(messageForSendTextArea, newConstraints(8,2, 0,0, 5, 2, true, true));
+                bottomPanel.add(messageAttachButton,    newConstraints(8,2, 5,0, 1, 2, true, true));
+                bottomPanel.add(messageSendButton,      newConstraints(8,2, 6,0, 2, 2, true, true));
     }
 
+    /**
+     * Создает и возвращает GridBagConstraints с настроенными свойствами
+     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param gx позиция по оси Х
+     * @param gy позиция по оси У
+     * @param gw количество занимаемых ячеек по оси Х
+     * @param gh количество занимаемых ячеек по оси У
+     * @return экземпляр объекта GridBagConstraints
+     */
+    public GridBagConstraints newConstraints(double wx, double wy, int gx, int gy, int gw, int gh) {
+        GridBagConstraints gridBagConstraints = new GridBagConstraints();
+        gridBagConstraints.weightx = wx;
+        gridBagConstraints.weighty = wy;
+        gridBagConstraints.gridx = gx;
+        gridBagConstraints.gridy = gy;
+        gridBagConstraints.gridwidth = gw;
+        gridBagConstraints.gridheight = gh;
+        return gridBagConstraints;
+    }
+    /**
+     * Создает и возвращает GridBagConstraints с настроенными свойствами
+     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param gx позиция по оси Х
+     * @param gy позиция по оси У
+     * @param gw количество занимаемых ячеек по оси Х
+     * @param gh количество занимаемых ячеек по оси У
+     * @return экземпляр объекта GridBagConstraints
+     */
+    public GridBagConstraints newConstraints(double wx, double wy, int gx, int gy, int gw, int gh, boolean isFillHor, boolean isFillVert) {
+        GridBagConstraints gridBagConstraints = new GridBagConstraints();
+        gridBagConstraints.weightx = wx;
+        gridBagConstraints.weighty = wy;
+        gridBagConstraints.gridx = gx;
+        gridBagConstraints.gridy = gy;
+        gridBagConstraints.gridwidth = gw;
+        gridBagConstraints.gridheight = gh;
+        if (isFillHor) gridBagConstraints.fill = GridBagConstraints.HORIZONTAL;
+        if (isFillVert) gridBagConstraints.fill = GridBagConstraints.VERTICAL;
+        return gridBagConstraints;
+    }
     /**
      * Обновляет панель со всеми логинами в соответствии с хранилищами пользователя
      * (Добавляет чат с логином и вешает на него обработчик)
@@ -216,7 +204,8 @@ public class TabChatPanel extends JPanel {
         loginTextArea.setEditable(false);
         loginTextArea.setLineWrap(true);
         loginTextArea.setWrapStyleWord(true);
-        anoWindow.tabChatPanel.getLoginsPanel().add(loginTextArea);
+        Integer loginNum = loginsPanel.getComponentCount();
+        loginsPanel.add(loginTextArea, newConstraints(3,7, 0, loginNum, 3, 1));
         log.info("addDisputerLoginTextArea(..) Конец - логин добавлен на панель");
         return loginTextArea;
     }
@@ -281,8 +270,8 @@ public class TabChatPanel extends JPanel {
             marginRight = marginLeftRightBig;
         }
         messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
-
-        messageHistoryPanel.add(messageTextArea);
+        Integer messageNum = messageHistoryPanel.getComponentCount();
+        messageHistoryPanel.add(messageTextArea, newConstraints(8,7, 0, messageNum, 8, 1));
         anoWindow.revalidate();
         anoWindow.repaint();
         //todo добавить прокрутку колесиком вниз истории сообщений

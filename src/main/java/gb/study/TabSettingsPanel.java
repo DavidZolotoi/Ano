@@ -108,6 +108,7 @@ public class TabSettingsPanel extends JPanel {
         gridBagConstraints.gridy = gy;
         gridBagConstraints.gridwidth = gw;
         gridBagConstraints.gridheight = gh;
+        gridBagConstraints.fill = GridBagConstraints.BOTH;
         return gridBagConstraints;
     }
 
