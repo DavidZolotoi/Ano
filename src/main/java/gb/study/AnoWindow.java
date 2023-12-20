@@ -4,13 +4,18 @@ import javax.swing.*;
 import java.awt.*;
 
 public class AnoWindow extends JFrame {
+    protected java.io.File jsonFile;
     protected Log log;
     protected String lSep = System.lineSeparator();
 
-    private final DB db;
+    private DB db;
     protected DB getDb() {
         return db;
     }
+    public void setDb(DB db) {
+        this.db = db;
+    }
+
     private User user;
     protected User getUser() {
         return user;
@@ -29,8 +34,6 @@ public class AnoWindow extends JFrame {
     public AnoWindow(Log log) {
         log.info("AnoWindow(Log log) Начало");
         this.log = log;
-
-        this.db = new DB(this);
 
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         Dimension screenSize = toolkit.getScreenSize();

@@ -21,7 +21,7 @@ import java.util.Map;
 public class DB {
     //путь к файлу и словарь с данными из файла делаю статическим,
     // чтоб не перезаписывать эти данные при каждом подключении к БД
-    protected static String settingsFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json";
+    protected static String settingsFilePath;
     protected static Map<String, String> settings;
 
     private final AnoWindow anoWindow;
