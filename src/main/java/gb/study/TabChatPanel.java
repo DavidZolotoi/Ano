@@ -71,12 +71,12 @@ public class TabChatPanel extends JPanel {
 
         // 2. ПРАВАЯ ПАНЕЛЬ
         rightPanel = new JPanel();
-        // 3. ВЕРХНИЙ элемент - история переписки - это JPanel из многих JTextArea, завернутая в JScrollPane
+        // 3. ВЕРХНИЙ элемент - история переписки - состоит из панели с сообщениями, завернутой в скролл
+        JPanel historyPanel = new JPanel();
+        // история переписки - это JPanel из многих JTextArea, завернутая в JScrollPane
         messageHistoryPanel = new JPanel();
         // добавить скролл
-        messageHistoryScroll = new JScrollPane();
-        messageHistoryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        messageHistoryScroll.setViewportView(messageHistoryPanel);
+        messageHistoryScroll = new JScrollPane(messageHistoryPanel);
 
         // 4. НИЖНЯЯ панель (панель с текстовым полем, кнопками)
         bottomPanel = new JPanel();
@@ -104,10 +104,13 @@ public class TabChatPanel extends JPanel {
 
         // ПРАВАЯ панель
         add(rightPanel, newConstraints(11,9, 3,0, 8, 9, false, true));
-            rightPanel.setLayout(new GridBagLayout());
-            rightPanel.add(messageHistoryScroll,    newConstraints(8,9, 0,0, 8, 7, true, true));
-            messageHistoryPanel.setLayout(new GridBagLayout());
-            rightPanel.add(bottomPanel,             newConstraints(8,9, 0,7, 8, 2, true, false));
+            rightPanel.setLayout(new BorderLayout());
+            rightPanel.add(historyPanel, BorderLayout.CENTER);
+                historyPanel.setLayout(new GridLayout(2, 1)); // 2 строки - 1 для messageHistoryPanel, 1 для bottomPanel
+                messageHistoryPanel.setLayout(new BoxLayout(messageHistoryPanel, BoxLayout.Y_AXIS));//new GridBagLayout());
+                messageHistoryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+                historyPanel.add(messageHistoryScroll, BorderLayout.CENTER);
+            rightPanel.add(bottomPanel, BorderLayout.SOUTH);//,             newConstraints(8,9, 0,7, 8, 2, true, false));
                 bottomPanel.setLayout(new GridBagLayout());
                 bottomPanel.add(messageForSendTextArea, newConstraints(8,2, 0,0, 5, 2, true, true));
                 bottomPanel.add(messageAttachButton,    newConstraints(8,2, 5,0, 1, 2, true, true));
@@ -116,8 +119,8 @@ public class TabChatPanel extends JPanel {
 
     /**
      * Создает и возвращает GridBagConstraints с настроенными свойствами
-     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
-     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param wx вес компонента вдоль оси Х ~ ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У ~ высота панели / высота ячейки
      * @param gx позиция по оси Х
      * @param gy позиция по оси У
      * @param gw количество занимаемых ячеек по оси Х
@@ -136,8 +139,8 @@ public class TabChatPanel extends JPanel {
     }
     /**
      * Создает и возвращает GridBagConstraints с настроенными свойствами
-     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
-     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param wx вес компонента вдоль оси Х ~ ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У ~ высота панели / высота ячейки
      * @param gx позиция по оси Х
      * @param gy позиция по оси У
      * @param gw количество занимаемых ячеек по оси Х
@@ -271,7 +274,7 @@ public class TabChatPanel extends JPanel {
         }
         messageTextArea.setMargin(new Insets(0, marginLeft, 0, marginRight));
         Integer messageNum = messageHistoryPanel.getComponentCount();
-        messageHistoryPanel.add(messageTextArea, newConstraints(8,7, 0, messageNum, 8, 1));
+        messageHistoryPanel.add(messageTextArea); //, newConstraints(8,7, 0, messageNum, 8, 1));
         anoWindow.revalidate();
         anoWindow.repaint();
         //todo добавить прокрутку колесиком вниз истории сообщений

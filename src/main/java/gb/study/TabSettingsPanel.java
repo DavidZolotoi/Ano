@@ -108,8 +108,8 @@ public class TabSettingsPanel extends JPanel {
 
     /**
      * Создает и возвращает GridBagConstraints с настроенными свойствами
-     * @param wx вес компонента вдоль оси Х = ширина панели / ширина ячейки
-     * @param wy вес компонента вдоль оси У = высота панели / высота ячейки
+     * @param wx вес компонента вдоль оси Х ~ ширина панели / ширина ячейки
+     * @param wy вес компонента вдоль оси У ~ высота панели / высота ячейки
      * @param gx позиция по оси Х
      * @param gy позиция по оси У
      * @param gw количество занимаемых ячеек по оси Х
@@ -192,7 +192,7 @@ public class TabSettingsPanel extends JPanel {
      * Распознает число, введенное в поле количества последних загружаемых сообщений
      * @return значение (если возникли исключения, то значение по умолчанию)
      */
-    protected Integer parseCountMessagesForDownload(){
+    public Integer parseCountMessagesForDownload(){
         log.info("parseCountMesForDownload() Начало");
         Integer countMesForDownload = 20;
         try {

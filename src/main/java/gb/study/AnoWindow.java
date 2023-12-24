@@ -24,7 +24,10 @@ public class AnoWindow extends JFrame {
         this.user = user;
     }
 
-    protected JTabbedPane tabbedPane;
+    private JPanel anoPanel;
+    private JTabbedPane tabbedPane;
+    protected JPanel tabSettings;
+    protected JPanel tabChat;
     protected TabSettingsPanel tabSettingsPanel;
     protected TabChatPanel tabChatPanel;
 
@@ -43,21 +46,19 @@ public class AnoWindow extends JFrame {
         this.windowHeigh = (int)(screenHeight * 0.75);
 
         this.log.info(
-                "Размеры экрана: ", screenWidth.toString(), "x", screenHeight.toString(),
-                ".", lSep, "Установка размеров окна: ", this.windowWidth.toString(), "x", this.windowHeigh.toString(),
+                "Размеры экрана:", screenWidth.toString(), "x", screenHeight.toString(),
+                ".", lSep, "Установка размеров окна:", this.windowWidth.toString(), "x", this.windowHeigh.toString(),
                 ".", lSep, "Установка заголовка."
         );
         setSize(this.windowWidth, this.windowHeigh);
         setTitle("Ano - лучший в мире чат!");
 
-        this.tabbedPane = new JTabbedPane();
+        this.log.info("Добавление основной панели на окно");
         this.tabSettingsPanel = new TabSettingsPanel(this);
+        tabSettings.add(tabSettingsPanel);
         this.tabChatPanel = new TabChatPanel(this);
-
-        this.log.info("Добавление панели с вкладками на главное окно и на панель -> ее вкладок (настройки и чата)");
-        add(tabbedPane);
-        this.tabbedPane.addTab("Настройки", tabSettingsPanel);
-        this.tabbedPane.addTab("Чат", tabChatPanel);
+        tabChat.add(tabChatPanel);
+        setContentPane(anoPanel);
 
         this.log.info("Установка операции закрытия окна, начальной позиции окна (по центру экрана) и видимости окна");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -66,4 +67,5 @@ public class AnoWindow extends JFrame {
 
         this.log.info("AnoWindow(Log log) Конец");
     }
+
 }
