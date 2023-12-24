@@ -14,14 +14,12 @@ public class TabSettingsPanel extends JPanel {
     private JTextArea dbStatusTextArea;
     private JButton dbDefaultButton;
     private JButton dbJsonButton;
-    private final JTextArea loginCommentTextArea;
     private final JTextArea loginValueTextArea;
     private final JPasswordField passValuePasswordField;
-    private final JButton logingButton;
+    private final JButton loginButton;
     private final JTextArea loginStatusTextArea;
     // ПРАВАЯ панель
     private final JPanel rightPanel;
-    private final JTextArea countMesForDownTextArea;
     private final JTextArea countMesForDownValueTextArea;
     public JTextArea getCountMesForDownValueTextArea() {
         return countMesForDownValueTextArea;
@@ -32,76 +30,27 @@ public class TabSettingsPanel extends JPanel {
         this.anoWindow = (AnoWindow)window;
         this.log = this.anoWindow.log;
         log.info("TabSettingsPanel(JFrame window) Начало");
-        leftPanel = new JPanel();
-        rightPanel = new JPanel();
+        leftPanel = anoWindow.tsLeftPanel;
+        rightPanel = anoWindow.tsRightPanel;
+        dbStatusTextArea = anoWindow.dbStatusTextArea;
+        dbStatusTextArea.setBackground(new Color(0, 0, 0, 0));
+        dbDefaultButton = anoWindow.dbDefaultButton;
+        dbJsonButton = anoWindow.dbJsonButton;
+        loginStatusTextArea = anoWindow.loginStatusTextArea;
+        loginStatusTextArea.setBackground(new Color(0, 0, 0, 0));
+        loginValueTextArea = anoWindow.loginValueTextArea;
+        passValuePasswordField = anoWindow.passValuePasswordField;
+        loginButton = anoWindow.loginButton;
+        countMesForDownValueTextArea = anoWindow.countMesForDownValueTextArea;
 
-        log.info("Создание компонентов для leftPanel");
-        dbStatusTextArea = new JTextArea("Требуется соединение с БД. Выберите способ подключения.");
-        dbStatusTextArea.setBackground(null);
-        dbStatusTextArea.setEditable(false);
-        dbStatusTextArea.setLineWrap(true);
-        dbStatusTextArea.setWrapStyleWord(true);
-        dbDefaultButton = new JButton("По умолчанию");
-        dbJsonButton = new JButton("Загрузить JSON");
-        loginCommentTextArea = new JTextArea("Логин:* ");
-        loginCommentTextArea.setEditable(false);
-        loginCommentTextArea.setLineWrap(true);
-        loginCommentTextArea.setWrapStyleWord(true);
-        loginCommentTextArea.setBackground(new Color(0, 0, 0, 0));
-        loginValueTextArea = new JTextArea();
-        loginValueTextArea.setLineWrap(true);
-        loginValueTextArea.setWrapStyleWord(true);
-
-        JTextArea passCommentTextArea = new JTextArea("Пароль:* ");
-        passCommentTextArea.setEditable(false);
-        passCommentTextArea.setLineWrap(true);
-        passCommentTextArea.setWrapStyleWord(true);
-        passCommentTextArea.setBackground(new Color(0, 0, 0, 0));
-        passValuePasswordField = new JPasswordField();
-
-        loginStatusTextArea = new JTextArea("Требуется авторизация");
-        loginStatusTextArea.setBackground(null);
-        loginStatusTextArea.setEditable(false);
-        loginStatusTextArea.setLineWrap(true);
-        loginStatusTextArea.setWrapStyleWord(true);
-        logingButton = new JButton("Войти");
-
-        log.info("Создание компонентов для rightPanel");
-        countMesForDownTextArea = new JTextArea("Количество загружаемых сообщений, при открытии диалога:");
-        countMesForDownTextArea.setEditable(false);
-        countMesForDownTextArea.setLineWrap(true);
-        countMesForDownTextArea.setWrapStyleWord(true);
-        countMesForDownTextArea.setBackground(new Color(0, 0, 0, 0));
-        countMesForDownValueTextArea = new JTextArea();
-        countMesForDownValueTextArea.setLineWrap(true);
-        countMesForDownValueTextArea.setWrapStyleWord(true);
-
-        // РАЗМЕТКА
-        log.info("РАЗМЕТКА панели настроек - добавление всего созданного");
-        setLayout(new GridBagLayout());
-        add(leftPanel, newConstraints(4,0, 0,0, 2, 3));
-        leftPanel.setLayout(new GridBagLayout());
-            leftPanel.add(dbStatusTextArea,         newConstraints(2,0,0,0,1,2));
-            leftPanel.add(dbDefaultButton,          newConstraints(2,0,1,0,1,1));
-            leftPanel.add(dbJsonButton,             newConstraints(2,0,1,1,1,1));
-            leftPanel.add(new JLabel(" "),      newConstraints(2,0,0,2,2,1));
-            leftPanel.add(new JLabel(" "),      newConstraints(2,0,0,3,2,1));
-            leftPanel.add(new JLabel(" "),      newConstraints(2,0,0,4,2,1));
-            leftPanel.add(loginCommentTextArea,     newConstraints(2,0,0,5,1,1));
-            leftPanel.add(loginValueTextArea,       newConstraints(2,0,1,5,1,1));
-            leftPanel.add(passCommentTextArea,      newConstraints(2,0,0,6,1,1));
-            leftPanel.add(passValuePasswordField,   newConstraints(2,0,1,6,1,1));
-            leftPanel.add(loginStatusTextArea,      newConstraints(2,0,0,7,1,1));
-            leftPanel.add(logingButton,             newConstraints(2,0,1,7,1,1));
-        add(rightPanel, newConstraints(4,0, 2,0, 2, 3));
-        rightPanel.setLayout(new GridBagLayout());
-            rightPanel.add(countMesForDownTextArea,     newConstraints(2,0, 0,0, 1, 1));
-            rightPanel.add(countMesForDownValueTextArea,newConstraints(2,0, 1,0, 1, 1));
         // Обработчики
-        logingButton.addActionListener(logingActionListener);
+        loginButton.addActionListener(logingActionListener);
         dbJsonButton.addActionListener(dbJsonActionListener);
         dbDefaultButton.addActionListener(dbDefaultActionListener);
         //todo регистрация anoWindow.getDb().insertNewUserAndConfigure(anoWindow); - добавляет нового пользователя в БД
+
+        anoWindow.revalidate();
+        anoWindow.repaint();
 
         log.info("TabSettingsPanel(JFrame window) Конец");
     }

@@ -24,10 +24,39 @@ public class AnoWindow extends JFrame {
         this.user = user;
     }
 
+    // ОБЩЕЕ
     private JPanel anoPanel;
     private JTabbedPane tabbedPane;
     protected JPanel tabSettings;
     protected JPanel tabChat;
+    // tabSettings
+    protected JPanel tsLeftPanel;
+    protected JPanel tsRightPanel;
+    protected JTextArea dbStatusTextArea;
+    protected JButton dbDefaultButton;
+    protected JButton dbJsonButton;
+    protected JTextArea loginValueTextArea;
+    protected JTextArea loginStatusTextArea;
+    protected JPasswordField passValuePasswordField;
+    protected JButton loginButton;
+    protected JTextArea countMesForDownValueTextArea;
+    //tabChat
+    protected JPanel tcLeftPanel;
+    protected JPanel tcRightPanel;
+    protected JPanel searchLoginPanel;
+    protected JTextArea searchLoginTextArea;
+    protected JButton searchLoginButton;
+    protected JPanel logins;
+    protected JScrollPane loginsScrollPane;
+    protected JPanel loginsPanel;
+    protected JPanel messageHistory;
+    protected JScrollPane messageHistoryScrollPane;
+    protected JPanel messageHistoryPanel;
+    protected JPanel bottomPanel;
+    protected JTextArea messageForSendTextArea;
+    protected JButton messageAttachButton;
+    protected JButton messageSendButton;
+
     protected TabSettingsPanel tabSettingsPanel;
     protected TabChatPanel tabChatPanel;
 
@@ -54,10 +83,10 @@ public class AnoWindow extends JFrame {
         setTitle("Ano - лучший в мире чат!");
 
         this.log.info("Добавление основной панели на окно");
-        this.tabSettingsPanel = new TabSettingsPanel(this);
-        tabSettings.add(tabSettingsPanel);
-        this.tabChatPanel = new TabChatPanel(this);
-        tabChat.add(tabChatPanel);
+        //this.tabSettingsPanel = new TabSettingsPanel(this);
+        //tabSettings.add(tabSettingsPanel);
+        //this.tabChatPanel = new TabChatPanel(this);
+        //tabChat.add(tabChatPanel);
         setContentPane(anoPanel);
 
         this.log.info("Установка операции закрытия окна, начальной позиции окна (по центру экрана) и видимости окна");
