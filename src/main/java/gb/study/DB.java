@@ -9,6 +9,7 @@ import org.postgresql.PGNotification;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.swing.*;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -456,10 +457,10 @@ public class DB {
                     //todo создать другой метод для загрузки не последних сообщений, а только последнего по его id
                     anoWindow.getUser().getChats().get(idDisputer).parseLastMessages(
                             chatListRow,
-                            anoWindow.tabSettingsPanel.parseCountMessagesForDownload(),
+                            anoWindow.parseCountMessagesForDownload(),
                             anoWindow
                     );
-                    anoWindow.tabChatPanel.addAndShowMessagesFromList(
+                    anoWindow.addAndShowMessagesFromList(
                             new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
                     audioNotification();

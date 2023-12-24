@@ -267,7 +267,7 @@ public class User {
         for (var disputerLoginAndChatListRow : disputerLoginsAndChatListRows.entrySet()){
             if(chatListRow.equals(disputerLoginAndChatListRow.getValue())){
                 log.info("В словарях найден логин, который надо добавить на панель, его обработчик и слушать его");
-                anoWindow.tabChatPanel.addNewDisputerAndListener(disputerLoginAndChatListRow);
+                anoWindow.addNewDisputerAndListener(disputerLoginAndChatListRow);
                 var chatListRows = new ArrayList<ChatListRow>(Arrays.asList(chatListRow));
                 CompletableFuture<Void> futureNewListenerNewMessage = listenerNewMessageAsync(chatListRows);
                 break;
