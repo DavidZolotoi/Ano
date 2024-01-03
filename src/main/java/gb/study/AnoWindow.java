@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 public class AnoWindow extends JFrame {
@@ -62,6 +63,11 @@ public class AnoWindow extends JFrame {
     protected JTextArea messageForSendTextArea;
     protected JButton messageAttachButton;
     protected JButton messageSendButton;
+    private JTextArea registerTextArea;
+    private JTextArea registerLoginTextArea;
+    private JTextArea passValue1TextArea;
+    private JTextArea passValue2TextArea;
+    private JButton registerButton;
 
     public Integer windowWidth;
     public Integer windowHeigh;
@@ -87,11 +93,12 @@ public class AnoWindow extends JFrame {
 
         this.log.info("Добавление основной панели на окно");
         setContentPane(anoPanel);
+
         // Обработчики
-        loginButton.addActionListener(logingActionListener);
         dbDefaultButton.addActionListener(dbDefaultActionListener);
         dbJsonButton.addActionListener(dbJsonActionListener);
-        //todo регистрация anoWindow.getDb().insertNewUserAndConfigure(anoWindow); - добавляет нового пользователя в БД
+        loginButton.addActionListener(logingActionListener);
+        registerButton.addActionListener(registerActionListener);
         searchLoginButton.addActionListener(searchLoginActionListener);
         messageSendButton.addActionListener(sendMessageActionListener);
 
@@ -104,7 +111,40 @@ public class AnoWindow extends JFrame {
     }
 
     /*** ОБРАБОТЧИКИ ПАНЕЛИ НАСТРОЕК ***/
-
+    /**
+     * Обработчик кнопки подключения к базе данных по умолчанию
+     */
+    final ActionListener dbDefaultActionListener = new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            log.info("Обработчик кнопки dbDefaultButton Начало");
+            DB.settingsFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json";
+            db = new DB(AnoWindow.this);
+            dbStatusTextArea.setText("Соединение по умолчанию установлено.");
+            log.info("Обработчик кнопки dbDefaultButton Конец - База данных по умолчанию создана.");
+        }
+    };
+    /**
+     * Обработчик кнопки подключения к базе данных, к JSON-настройкам которых указал пользователь
+     */
+    final ActionListener dbJsonActionListener = new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            log.info("Обработчик кнопки dbJsonButton Начало");
+            JFileChooser fileChooser = new JFileChooser();
+            int returnValue = fileChooser.showOpenDialog(null);
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                DB.settingsFilePath = fileChooser.getSelectedFile().getAbsolutePath();
+                log.info("Указан файл JSON:", DB.settingsFilePath);
+                db = new DB(AnoWindow.this);
+                dbStatusTextArea.setText("Соединение установлено.");
+                log.info("Обработчик кнопки dbJsonButton Конец - База данных по указанному файлу JSON создана.");
+            }
+            else {
+                log.warning("Пользователь намеревался, но не выбрал файл для подключения к БД");
+            }
+        }
+    };
     /**
      * Обработчик кнопки входа
      * В результате имеются: база данных, пользователь со своими словарями и прослушивания.
@@ -141,36 +181,49 @@ public class AnoWindow extends JFrame {
         }
     };
     /**
-     * Обработчик кнопки подключения к базе данных по умолчанию
+     * Обработчик кнопки регистрации нового пользователя
      */
-    final ActionListener dbDefaultActionListener = new ActionListener() {
+    final ActionListener registerActionListener = new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            log.info("Обработчик кнопки dbDefaultButton Начало");
-            DB.settingsFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\settings_past_the_git.json";
-            db = new DB(AnoWindow.this);
-            dbStatusTextArea.setText("Соединение по умолчанию установлено.");
-            log.info("Обработчик кнопки dbDefaultButton Конец - База данных по умолчанию создана.");
-        }
-    };
-    /**
-     * Обработчик кнопки подключения к базе данных, к JSON-настройкам которых указал пользователь
-     */
-    final ActionListener dbJsonActionListener = new ActionListener() {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            log.info("Обработчик кнопки dbJsonButton Начало");
-            JFileChooser fileChooser = new JFileChooser();
-            int returnValue = fileChooser.showOpenDialog(null);
-            if (returnValue == JFileChooser.APPROVE_OPTION) {
-                DB.settingsFilePath = fileChooser.getSelectedFile().getAbsolutePath();
-                log.info("Указан файл JSON:", DB.settingsFilePath);
-                db = new DB(AnoWindow.this);
-                dbStatusTextArea.setText("Соединение установлено.");
-                log.info("Обработчик кнопки dbJsonButton Конец - База данных по указанному файлу JSON создана.");
+            if (registerLoginTextArea.getText().isEmpty() ||
+                    passValue1TextArea.getText().isEmpty() ||
+                    passValue2TextArea.getText().isEmpty()
+            ){
+                String messageInfo = "Заполните все 3 поля для регистрации: Логин, Пароль и снова Пароль. И попробуйте еще.";
+                JOptionPane.showMessageDialog(null, messageInfo);
+                log.warning(messageInfo);
+                log.info("Обработчик кнопки registerButton Конец - прервано на проверке");
+                return;
             }
-            else {
-                log.warning("Пользователь намеревался, но не выбрал файл для подключения к БД");
+            if (!passValue1TextArea.getText().equals(passValue2TextArea.getText())){
+                String messageInfo = "Пароли не совпадают. Пожалуйста исправьте и попробуйте еще.";
+                JOptionPane.showMessageDialog(null, messageInfo);
+                log.warning(messageInfo);
+                log.info("Обработчик кнопки registerButton Конец - прервано на проверке");
+                return;
+            }
+            if(AnoWindow.this.db == null){
+                //dbDefaultButton.actionPerformed(new ActionEvent(dbDefaultButton, 0, null));
+                dbDefaultButton.doClick();
+            }
+            String login = registerLoginTextArea.getText();
+            ArrayList<ArrayList<Object>> idsAndLoginsForLoginSearch = db.selectIdsAndLoginsForLoginSearch(login);
+            if (idsAndLoginsForLoginSearch.isEmpty()){
+                String passw = passValue1TextArea.getText();
+                User user = new User(login, passw, AnoWindow.this);
+                passw = "";
+                user = null;
+                log.warning("Создан новый пользователь: ", login);
+                login = "";
+                log.info("Обработчик кнопки registerButton Конец - пользователь создан и зарегистрирован");
+                return;
+            }
+            if (idsAndLoginsForLoginSearch.size() >= 1){
+                String messageInfo = "Пользователь, с таким логином уже существует. Придумайте другой логин.";
+                JOptionPane.showMessageDialog(null, messageInfo);
+                log.warning(messageInfo, "Вбиваемый для регистрации логин:", login);
+                log.info("Обработчик кнопки registerButton Конец - прервано на проверке");
             }
         }
     };

@@ -2,7 +2,7 @@
 <form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="gb.study.AnoWindow">
   <grid id="27dc6" binding="anoPanel" layout-manager="BorderLayout" hgap="0" vgap="0">
     <constraints>
-      <xy x="20" y="20" width="515" height="400"/>
+      <xy x="20" y="20" width="515" height="429"/>
     </constraints>
     <properties>
       <inheritsPopupMenu value="true"/>
@@ -74,7 +74,7 @@
                     </constraints>
                     <properties>
                       <editable value="false"/>
-                      <text value="Авторизация - X"/>
+                      <text value="Необходимо войти"/>
                     </properties>
                   </component>
                   <component id="c96c6" class="javax.swing.JTextArea" binding="loginValueTextArea">
@@ -116,6 +116,65 @@
                       <gridbag weightx="0.0" weighty="0.0"/>
                     </constraints>
                   </vspacer>
+                  <component id="42d44" class="javax.swing.JTextArea" binding="registerTextArea">
+                    <constraints>
+                      <grid row="9" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="6" anchor="0" fill="3" indent="0" use-parent-layout="false">
+                        <preferred-size width="150" height="50"/>
+                      </grid>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <text value="Регистрация"/>
+                    </properties>
+                  </component>
+                  <vspacer id="5f9fe">
+                    <constraints>
+                      <grid row="8" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                  </vspacer>
+                  <component id="8e254" class="javax.swing.JTextArea" binding="registerLoginTextArea">
+                    <constraints>
+                      <grid row="10" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="6" anchor="0" fill="3" indent="0" use-parent-layout="false">
+                        <preferred-size width="150" height="50"/>
+                      </grid>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <text value="Логин"/>
+                    </properties>
+                  </component>
+                  <component id="a35b4" class="javax.swing.JTextArea" binding="passValue1TextArea">
+                    <constraints>
+                      <grid row="11" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="6" anchor="0" fill="3" indent="0" use-parent-layout="false">
+                        <preferred-size width="150" height="50"/>
+                      </grid>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <text value="Придумайте пароль"/>
+                    </properties>
+                  </component>
+                  <component id="30837" class="javax.swing.JTextArea" binding="passValue2TextArea">
+                    <constraints>
+                      <grid row="12" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="6" anchor="0" fill="3" indent="0" use-parent-layout="false">
+                        <preferred-size width="150" height="50"/>
+                      </grid>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <text value="Подтвердите пароль"/>
+                    </properties>
+                  </component>
+                  <component id="a2967" class="javax.swing.JButton" binding="registerButton">
+                    <constraints>
+                      <grid row="13" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <text value="Зарегистрироваться"/>
+                    </properties>
+                  </component>
                 </children>
               </grid>
               <grid id="861db" binding="tsRightPanel" layout-manager="GridBagLayout">

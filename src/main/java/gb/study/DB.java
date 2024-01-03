@@ -9,7 +9,6 @@ import org.postgresql.PGNotification;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.swing.*;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -564,29 +563,36 @@ public class DB {
      * Метод, добавляющий нового пользователя (новую строку в таблице user)
      * @param user объект пользователя, которого необходимо добавить
      */
-    public void insertNewUserAndConfigure(User user) {
+    public void insertNewUser(User user) {
+        log.info("insertNewUser(..) Начало");
+        if (user == null || user.getLogin().isEmpty() || user.getPassword().isEmpty()){
+            log.problem("Не вижу данных пользователя для регистрации, попробуйте еще.");
+        }
         String queryForInsertNewUser =
                 "INSERT INTO " + DB.settings.get("table_name_for_user") +
                         "(" +
-                        "uslogin" + ", " +
-                        "uspassword" + ", " +
-                        "usfirstname" + ", " +
-                        "uslastname" + ", " +
-                        "usmail" + ", " +
-                        "usphone" + ", " +
-                        "uscomment" +
+                            "uslogin, " +
+                            "uspassword, " +
+                            "usfirstname, " +
+                            "uslastname, " +
+                            "usemail, " +
+                            "usphone, " +
+                            "uscomment" +
                         ")" +
-                        "VALUES" +
+                "VALUES" +
                         "(" +
-                        "'" + user.getLogin() + "'," +
-                        "'" + user.getPassword() + "'," +
-                        "'" + user.getFirstName() + "'," +
-                        "'" + user.getLastName() + "'," +
-                        "'" + user.getMail() + "'," +
-                        "'" + user.getPhone() + "'," +
-                        "'" + user.getComment() + "'," +
+                            "'" +    user.getLogin()                                          + "'," +
+                            "'" +    user.getPassword()                                       + "'," +
+                            "'" + ( (user.getFirstName() == null)? "" : user.getFirstName() ) + "'," +
+                            "'" + ( (user.getLastName()  == null)? "" : user.getLastName()  ) + "'," +
+                            "'" + ( (user.getMail()      == null)? "" : user.getMail()      ) + "'," +
+                            "'" + ( (user.getPhone()     == null)? "" : user.getPhone()     ) + "'," +
+                            "'" + ( (user.getComment()   == null)? "" : user.getComment()   ) + "'" +
                         ");";
         executeQueryVoid(queryForInsertNewUser);
+        user = null;
+        queryForInsertNewUser = "";
+        log.info("insertNewUser(..) Конец - запрос на выполнение создания нового пользователя выполнен, локальные данные стерты.");
     }
 
     /**

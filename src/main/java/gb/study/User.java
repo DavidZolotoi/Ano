@@ -8,7 +8,7 @@ public class User {
     private final AnoWindow anoWindow;   //БД в его свойстве
     private final Log log;
 
-    private final Integer id;        //заполняется при добавлении в БД, выгрузкой из неё присвоенного id
+    private Integer id;        //заполняется при добавлении в БД, выгрузкой из неё присвоенного id
     public Integer getId() {
         return id;
     }
@@ -118,20 +118,37 @@ public class User {
     }
 
     /**
+     * Конструктор пользователя, в который передаются данные, для загрузки в БД.
+     * Не приватный, вызывается из обработчика регистрации нового пользователя.
+     * @param login логин пользователя
+     * @param passw пароль пользователя
+     * @param window главное окно, содержит логгер и прочее
+     */
+    protected User(String login, String passw, JFrame window){
+        this.anoWindow = (AnoWindow)window;
+        this.log = this.anoWindow.log;
+        log.info("User(..) protected Начало");
+        this.login = login;
+        this.password = passw;
+        anoWindow.getDb().insertNewUser(this);
+        login = "";
+        passw = "";
+        this.password = "";
+        log.info("User(..) protected Конец - пользователь зарегистрирован, локальный пароль стерт");
+    }
+
+    /**
      * Конструктор пользователя, в который передаются данные, загруженные из БД.
-     * Приватный, вызывается из метода проверки логина и пароля после проверки .
+     * Приватный, вызывается из метода проверки логина и пароля после проверки.
      * Загрузит из БД информацию о собеседниках для словарей, но не информацию о сообщениях (загрузка сообщений по клику).
      * @param id пользователя, который присвоен ему в БД и загружен из нее
      * @param login пользователя
      * @param window главное окно, содержит логгер и прочее
      */
-    private User(
-            Integer id, String login,
-            JFrame window
-    ) {
+    private User(Integer id, String login, JFrame window) {
         this.anoWindow = (AnoWindow)window;
         this.log = this.anoWindow.log;
-        log.info("User(..) Начало");
+        log.info("User(..) private Начало");
         this.id = id;
         this.login = login;
         //this.password = password;
@@ -139,7 +156,7 @@ public class User {
         this.disputerLoginsAndChatListRows = new LinkedHashMap<String, ChatListRow>();
         this.chats = new LinkedHashMap<Integer, Chat>();
         disputersUpdate();
-        log.info("User(..) Конец");
+        log.info("User(..) private Конец");
     }
     /**
      * Обновит словари с информацией о собеседниках: disputerIdsAndChatListRows, disputerLoginsAndChatListRows, chats
