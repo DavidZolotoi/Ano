@@ -1,5 +1,8 @@
 package gb.study;
 
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
 public class Experiment implements Convert {

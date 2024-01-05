@@ -274,10 +274,8 @@ public class User {
     protected void addNewDisputerFromDBNotify(ChatListRow chatListRow){
         log.info("addNewDisputerFromDBNotify(..) Начало");
         Integer disputerId = calculateDisputerId(chatListRow);
-        System.out.println(disputerId);
         disputerIdsAndChatListRows.put(disputerId, chatListRow);
         ArrayList<Integer> disputerIds = new ArrayList<>(Arrays.asList(disputerId));
-        System.out.println(disputerIds.get(0));
         parseDisputerLoginsAndChatListRows(getIdsAndLoginsFromDB(disputerIds));
         Chat disputerChat = new Chat(chatListRow.getTableName(), anoWindow);
         chats.put(disputerId, disputerChat);
@@ -285,6 +283,8 @@ public class User {
             if(chatListRow.equals(disputerLoginAndChatListRow.getValue())){
                 log.info("В словарях найден логин, который надо добавить на панель, его обработчик и слушать его");
                 anoWindow.addNewDisputerAndListener(disputerLoginAndChatListRow);
+                anoWindow.revalidate();
+                anoWindow.repaint();
                 var chatListRows = new ArrayList<ChatListRow>(Arrays.asList(chatListRow));
                 CompletableFuture<Void> futureNewListenerNewMessage = listenerNewMessageAsync(chatListRows);
                 break;
@@ -382,7 +382,7 @@ public class User {
     }
 
 
-
+    //todo в будущем можно переделать метод addNewDisputerFromDBNotify(ChatListRow chatListRow) использовав, но аккуратно
     /**
      * Универсальный способ найти ключ по значению.
      * Это то, чего следует избегать, потому что цикл

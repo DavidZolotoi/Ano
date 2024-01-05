@@ -372,7 +372,7 @@ public class AnoWindow extends JFrame {
     private void loginAddMouseListener(JTextArea loginTextArea) {
         log.info("loginAddMouseListener(..) Начало");
         if (loginTextArea == null) {
-            log.warning("loginAddMouseListener(..) Конец - loginTextArea для добавления = null");
+            log.warning("loginAddMouseListener(..) Конец - loginTextArea для того, чтоб повесить обработчик клика = null");
             return;
         }
         loginTextArea.addMouseListener(new MouseAdapter() {
@@ -380,8 +380,8 @@ public class AnoWindow extends JFrame {
                 log.info("loginTextArea.addMouseListener(..) Начало");
                 String disputerLogin = loginTextArea.getText();
                 if (
-                        user.getDisputerLoginsAndChatListRows() == null ||
-                        !user.getDisputerLoginsAndChatListRows().containsKey(disputerLogin)
+                    user.getDisputerLoginsAndChatListRows() == null ||
+                    !user.getDisputerLoginsAndChatListRows().containsKey(disputerLogin)
                 ){
                     log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                             "Отсутствует словарь ''login->chatlist'' или логин (по которому кликнули) в этом словаре пользователя.");
@@ -399,6 +399,8 @@ public class AnoWindow extends JFrame {
                         parseCountMessagesForDownload(),
                         AnoWindow.this
                 );
+                //loginTextArea.setFont(loginTextArea.getFont().deriveFont(Font.PLAIN));
+                loginTextArea.setForeground(Color.BLACK);
                 addAndShowMessagesFromList(new ArrayList<>(user.getChats().get(disputerId).getMessages().values()));
                 log.info("loginTextArea.addMouseListener(..) Конец - описание обработчика-метода в аргументе");
             }
@@ -429,8 +431,8 @@ public class AnoWindow extends JFrame {
         Integer messageNum = messageHistoryPanel.getComponentCount();
         //todo добавить еще какие-нибудь настройки, чтоб растянуть сообщение в ширину родителя
         messageHistoryPanel.add(messageTextArea, newConstraints(10,1, 0, messageNum, 1, 1, true, true));
-        this.revalidate();
-        this.repaint();
+//        messageHistoryPanel.revalidate();
+//        messageHistoryPanel.repaint();
         //todo добавить прокрутку колесиком вниз истории сообщений
         log.info("addAndShowNewMessage(..) Конец - сообщение добавлено на панель");
     }
@@ -446,18 +448,24 @@ public class AnoWindow extends JFrame {
         for (var message : messages) {
             addAndShowNewMessage(message);
         }
-        //loginsPanelNotice(String loginValue);
         messageHistoryPanel.revalidate();
         messageHistoryPanel.repaint();
         log.info("addAndShowMessagesFromList(..) Конец - сообщения добавлены и перерисованы");
     }
-    //todo если делать пометку звездочкой, то и снимать ее надо при прочтении
+
+    /**
+     * Находит на панели логинов чат, в котором прилетело новое сообщение и помечает его
+     * @param loginValue чат, в котором прилетело новое сообщение
+     */
     protected void loginsPanelNotice(String loginValue){
         for (var loginTextArea : loginsPanel.getComponents()) {
-            if(((JTextArea) loginTextArea).getText().replace("*", "").equals(loginValue)){
-                ((JTextArea) loginTextArea).setText(loginValue + "*");
+            if(((JTextArea) loginTextArea).getText().equals(loginValue)){
+                //loginTextArea.setFont(loginTextArea.getFont().deriveFont(Font.BOLD));
+                loginTextArea.setForeground(Color.RED);
             }
         }
+        this.revalidate();
+        this.repaint();
     }
 
     /**
@@ -467,6 +475,7 @@ public class AnoWindow extends JFrame {
         log.info("clearMessageHistoryPanel() Начало");
         Component[] components = messageHistoryPanel.getComponents();
         if (components == null) {
+            //todo в debug обнаружено, что null не выдает даже когда пусто, возможно стоит удалить этот блок
             log.warning("Панель сообщений была пуста (не имеет компонентов)");
             return;
         }

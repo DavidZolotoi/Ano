@@ -6,13 +6,11 @@ import org.json.JSONTokener;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 
+import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.swing.*;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -448,7 +446,19 @@ public class DB {
                     //String comment = parts[5];
                     ChatListRow chatListRow = anoWindow.getUser().getChatListRowByTableName(tableName);
                     Integer idDisputer = anoWindow.getUser().calculateDisputerId(chatListRow);
-                    if (!anoWindow.getUser().isActiveChatListRow(chatListRow)) return;
+                    audioNotification();
+                    if (!anoWindow.getUser().isActiveChatListRow(chatListRow)) {
+                        String loginSentNewMessage = null;
+                        for (var disputerLoginAndChatListRow : anoWindow.getUser().getDisputerLoginsAndChatListRows().entrySet()){
+                            if(chatListRow.equals(disputerLoginAndChatListRow.getValue())){
+                                log.info("В словарях найден логин, от которого прилетело сообщение");
+                                loginSentNewMessage = disputerLoginAndChatListRow.getKey();
+                                break;
+                            }
+                        }
+                        anoWindow.loginsPanelNotice(loginSentNewMessage);
+                        return;
+                    }
                     if ( anoWindow.getUser().getChats() == null || !anoWindow.getUser().getChats().containsKey(idDisputer) ){
                         log.problem("Ситуация, которая возможна только в теории, на практике такого не должно быть.",
                                 "Отсутствует словарь ''id->chat'' или id (по от кого сообщение) в этом словаре пользователя.");
@@ -462,7 +472,6 @@ public class DB {
                     anoWindow.addAndShowMessagesFromList(
                             new ArrayList<>(anoWindow.getUser().getChats().get(idDisputer).getMessages().values())
                     );
-                    audioNotification();
                 }
             }
 
@@ -545,12 +554,11 @@ public class DB {
      */
     public void audioNotification() {
         this.log.info("audioNotification() Начало");
-        //todo надо как-то прикрепить к программе звуковой файл
-        String soundFilePath = "E:\\Csharp\\GB\\Ano\\Anoswing\\Ano\\src\\main\\resources\\sounds\\audioMes.wav";
+        String soundFilePath = "/sounds/audioMes.wav";
         try {
-            File soundFile = new File(soundFilePath);
+            InputStream is = this.getClass().getResourceAsStream(soundFilePath);
             Clip clip = AudioSystem.getClip();
-            clip.open(AudioSystem.getAudioInputStream(soundFile));
+            clip.open(AudioSystem.getAudioInputStream(is));
             clip.start();
             this.log.info("audioNotification() Конец - звуковое уведомление");
         } catch (Exception e) {
